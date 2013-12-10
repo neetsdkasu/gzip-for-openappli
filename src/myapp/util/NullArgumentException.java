@@ -4,7 +4,7 @@ package myapp.util;
 /**
  * コンストラクタやメソッドの引数に <CODE>null</CODE> が渡されたときスローする。
  * 
- * @author Leonardone
+ * @author Leonardone @ NEETSDKASU
  * 
  */
 public class NullArgumentException extends IllegalArgumentException {
