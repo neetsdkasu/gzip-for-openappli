@@ -8,20 +8,23 @@ import myapp.util.NullArgumentException;
 
 public class InflaterInputStream extends FilterInputStream {
 
+	private static final int DEFAULT_BUFFER_SIZE = 1000;
+	
 	protected int len;
 	protected byte[] buf;
 	protected Inflater inf;
 	
 	public InflaterInputStream(InputStream in) {
-		this(in, new Inflater(), 1000);
+		this(in, new Inflater());
 	}
 
 	public InflaterInputStream(InputStream in, Inflater inf) {
-		this(in, inf, 1000);
+		this(in, inf, InflaterInputStream.DEFAULT_BUFFER_SIZE);
 	}
 
 	public InflaterInputStream(InputStream in, Inflater inf, int size) {
 		super(in);
+		if (size <= 0) throw new IllegalArgumentException("rquire: size > 0");
 		if (inf == null) throw new NullArgumentException("inf");
 		this.inf = inf;
 	}

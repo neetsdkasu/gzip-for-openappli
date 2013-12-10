@@ -97,4 +97,18 @@ public class Hoge {
 		testChecksum(new myapp.util.zip.Adler32(), new java.util.zip.Adler32());
 	}
 
+	private int reverseBit(int byteValue) {
+		return 
+				((byteValue & 0x1) << 7)
+			|	((byteValue & 0x2) << 5)
+			|   ((byteValue & 0x4) << 3)
+			|	((byteValue & 0x8) << 1)
+			|   ((byteValue & 0x10) >> 1)
+			| 	((byteValue & 0x20) >> 3)
+			|	((byteValue & 0x40) >> 5)
+			| 	((byteValue & 0x80) >> 7)
+				;
+	}
+	
+	
 }
