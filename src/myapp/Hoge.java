@@ -16,18 +16,47 @@ public class Hoge {
 //		hoge.testCRC32();
 //		hoge.testAdler32();
 		
-		GZIPInputStream in = new GZIPInputStream(new FileInputStream("mjlog.gz"));
-		byte[] data = new byte[100];
-		int len;
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		while ((len = in.read(data)) != -1) {
-			buf.write(data, 0, len);
-		}
-		in.close();
-		System.out.println(buf.toString());
+//		GZIPInputStream in = new GZIPInputStream(new FileInputStream("mjlog.gz"));
+//		byte[] data = new byte[100];
+//		int len;
+//		ByteArrayOutputStream buf = new ByteArrayOutputStream();
+//		while ((len = in.read(data)) != -1) {
+//			buf.write(data, 0, len);
+//		}
+//		in.close();
+//		System.out.println(buf.toString());
+		
+		hoge.testInflater();
 	}
 	
 	public Hoge() {
+	}
+	
+	public void testInflater() throws Exception {
+	     // Encode a String into bytes
+	     String inputString = "blahblahblah";
+	     byte[] input = inputString.getBytes("UTF-8");
+	     
+	     // Compress the bytes
+	     byte[] output = new byte[100];
+	     java.util.zip.Deflater compresser = 
+	    		 new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, true);
+	     compresser.setInput(input);
+	     compresser.finish();
+	     int compressedDataLength = compresser.deflate(output);
+	     compresser.end();	
+	     
+	     // Decompress the bytes
+	     myapp.util.zip.Inflater decompresser = new myapp.util.zip.Inflater(true);
+	     decompresser.setInput(output, 0, compressedDataLength);
+	     byte[] result = new byte[100];
+	     int resultLength = decompresser.inflate(result);
+	     decompresser.end();	    
+	     
+	     System.out.println(resultLength);
+	     System.out.println(new String(result, 0, resultLength));
+	     
+	     
 	}
 
 	public void testChecksum(myapp.util.zip.Checksum cs1, java.util.zip.Checksum cs2) {
