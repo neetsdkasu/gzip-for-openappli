@@ -4,8 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 
-/**
- * @author Tomarky
+/**Deflate圧縮解除クラス。
+ * @author Leonardone @ NEETSDKASU
  *
  */
 public class Inflater {
@@ -13,12 +13,17 @@ public class Inflater {
 	private static final int REFER_SIZE = 0x10000;
 	private static final int REFER_MASK = 0x0FFFF;
 	
+	private static final int[] HCINDEXES =
+		{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
+	
 	private static WeakReference<Object> wrfLengthTable = null;
 	private static WeakReference<Object> wrfDistanceTable = null;
 	
-	private short[] lengthTable = null;
-	private short[] distanceTable = null;
+	private short[] lengthTable;
+	private short[] distanceTable;
 	{
+		// 長さと距離のそれぞれのアルファベットに対応する長さ・距離のテーブルを用意する。
+		
 		short n;
 		int i, j, k;
 		
@@ -66,30 +71,38 @@ public class Inflater {
 		}
 	}
 
-	private int getLength(int code) {
-		return (int)lengthTable[code - 257];
-	}
-	
-	/**
-	 * @param code	257 - 285
-	 * @return
+	/**長さのアルファベットに対応する基底の長さを取得する。
+	 * @param alpha	長さのアルファベット (257...285)。
+	 * @return		対応する基底の長さ。
 	 */
-	private int getLengthExBitsSize(int code) {
-		if ((code < 265) || (code == 285)) return 0;
-		else return (code - 261) >> 2; 
+	private int getLength(int alpha) {
+		return (int)lengthTable[alpha - 257];
 	}
 	
-	private int getDistance(int code) {
-		return (int)distanceTable[code];
-	}
-	
-	/**
-	 * @param code  0 - 29
-	 * @return
+	/**長さのアルファベットに対応する拡張ビットのサイズを取得する。
+	 * @param alpha	長さのアルファベット (257...285)。
+	 * @return		対応する拡張ビットのサイズ。
 	 */
-	private int getDistanceExBitsSize(int code) {
-		if (code < 4) return 0;
-		else return (code - 2) >> 1;
+	private int getLengthExBitsSize(int alpha) {
+		if ((alpha < 265) || (alpha == 285)) return 0;
+		else return (alpha - 261) >> 2; 
+	}
+	
+	/**距離のアルファベットに対応する基底の距離を取得する。
+	 * @param alpha	距離のアルファベット(0..29)。
+	 * @return		 対応する規定の距離。
+	 */
+	private int getDistance(int alpha) {
+		return (int)distanceTable[alpha];
+	}
+	
+	/**距離のアルファベットに対応する拡張ビットサイズを取得する。
+	 * @param alpha  距離のアルファベット(0..29)。
+	 * @return		 拡張ビットのサイズ。
+	 */
+	private int getDistanceExBitsSize(int alpha) {
+		if (alpha < 4) return 0;
+		else return (alpha - 2) >> 1;
 	}
 	
 	
@@ -106,6 +119,7 @@ public class Inflater {
 	
 	private boolean bFinal;
 	private int bType;
+	
 	private int bTerm;
 	private int bShift;
 	private int bLen;
@@ -114,11 +128,26 @@ public class Inflater {
 	private int bDist;
 	private boolean decomp;
 	
+	//カスタムハフマン符号用
+	private int hLit;
+	private int hDist;
+	private int hCLen;
+	private int[] hCBitLen = null;
+	private int[] alphaTable = null;
+	private int hMinBits;
+	private int[] ldBitLen = null;
+	private int[] customLength = null;
+	private int[] customDistance = null;
+	private int bMinBitsL;
+	private int bMinBitsD;
+	
 	public Inflater() {
 		this(false);
 	}
 	
-	// nowrap : falseならZLIB、trueならGZIP
+	/** コンストラクタ。
+	 * @param nowrap	trueならGZIP、falseならZLIB。
+	 */
 	public Inflater(boolean nowrap) {
 		if (nowrap) {
 			adler = null;
@@ -182,6 +211,7 @@ public class Inflater {
 				count += inflate01(b, off + count);
 				break;
 			case 5: // カスタムハフマン
+				count += inflate10(b, off + count);
 				break;
 			}
 		}
@@ -192,19 +222,7 @@ public class Inflater {
 		return count;
 	}
 	
-	private int reverseBit(int byteValue) {
-		return 
-				((byteValue & 0x1) << 7)
-			|	((byteValue & 0x2) << 5)
-			|   ((byteValue & 0x4) << 3)
-			|	((byteValue & 0x8) << 1)
-			|   ((byteValue & 0x10) >> 1)
-			| 	((byteValue & 0x20) >> 3)
-			|	((byteValue & 0x40) >> 5)
-			| 	((byteValue & 0x80) >> 7)
-				;
-	}
-	
+
 	private byte getByte() {
 		++bufferIndex;
 		if (bufferIndex == buffer.length) {
@@ -360,7 +378,7 @@ public class Inflater {
 				buf = referIndex;
 			}
 			break;
-		case 4: // 展開
+		case 4: // 圧縮解除
 			int pos = (buf - bDist + bNLen) & Inflater.REFER_MASK;
 			putByte(b, off, refer[pos]);
 			++bNLen;
@@ -370,7 +388,263 @@ public class Inflater {
 			--bLen;
 			if (bLen == 0) {
 				decomp = false;
-				nextBlock();
+				bTerm = 0;
+				buf = bShift = 0;
+			}
+			return 1;
+		}
+		return 0;
+	}
+	
+	private void makeCodeTable(int[] treeCode, int offC, int[] treeLen, int offL, int len) {
+		int i;
+		int max_bits = 0;
+		for (i = 0; i < len; i++) {
+			if (treeLen[offL + i] > max_bits) {
+				max_bits = treeLen[offL + i];
+			}
+		}
+		int[] bl_count = new int[max_bits + 1];
+		int[] next_code = new int[max_bits + 1];
+		for (i = 0; i < len; i++) {
+			++bl_count[treeLen[offL + i]];
+		}
+		int code = 0;
+		bl_count[0] = 0;
+		for (i = 1; i <= max_bits; i++) {
+			code = (code + bl_count[i - 1]) << 1;
+			next_code[i] = code;
+		}
+		for (i = 0; i < len; i++) {
+			int bitlen = treeLen[offL + i];
+			if (bitlen != 0) {
+				treeCode[offC + i] = next_code[bitlen];
+				++next_code[bitlen];
+			}
+		}
+	}
+	
+	private int searchCode(int[] treeCode, int offC, int[] treeLen, int offL, int len, int code, int codelen) {
+		for (int i = 0; i < len; i++) {
+			if (treeLen[i + offL] == codelen) {
+				if (treeCode[i + offC] == code) {
+					return i;
+				}
+			}
+		}
+		return -1;
+	}
+	
+	private int[] initArray(int[] array, int len) {
+		if ((array == null) || (array.length != len)) {
+			return new int[len];
+		} else {
+			for (int i = 0; i < len; ++i) {
+				array[i] = 0;
+			}
+			return array;
+		}
+	}
+	
+	private void makeCustomTables() {
+		customLength = initArray(customLength, hLit + 257);
+		customDistance = initArray(customDistance, hDist + 1);
+		makeCodeTable(customLength, 0, ldBitLen, 0, hLit + 257);
+		makeCodeTable(customDistance, 0, ldBitLen, hLit + 257, hDist + 1);
+		bTerm = 8;
+	}
+	
+	private int inflate10(byte[] b, int off) throws DataFormatException {
+		switch (bTerm) {
+		case 0:	// HLITの読み込み
+		case 1: // HDISTの読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == 5) {
+				if (bTerm == 0) {
+					hLit = buf;
+				} else {
+					hDist = buf;
+					hCLen = 0;
+				}
+				buf = bShift = 0;
+				++bTerm;
+			}
+			break;
+		case 2: // HCLENの読み込み
+			hCLen |= getBit() << bShift;
+			++bShift;
+			if (bShift == 4) {
+				hCBitLen = initArray(hCBitLen, 19);
+				buf = bShift = bLen = bNLen = hMinBits = 0;
+				++bTerm;
+			}
+			break;
+		case 3: // (HCLEN + 4) x 3bit アルファベットテーブル圧縮解除用ハフマン符号の読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == 3) {
+				hCBitLen[Inflater.HCINDEXES[bNLen]] = buf;
+				if ((buf < hMinBits) || (hMinBits == 0)) {
+					hMinBits = buf;
+				}
+				++bNLen;
+				if (bNLen == (hCLen + 4)) {
+					// アルファベットデータ圧縮解除用ハフマン符号生成
+					alphaTable = initArray(alphaTable, 19);
+					makeCodeTable(alphaTable, 0, hCBitLen, 0, 19);
+					bLen = (hLit + 257) + hDist + 1; 
+					bNLen = 0;
+					bMinBitsD = bMinBitsL = 0;
+					ldBitLen = initArray(ldBitLen, bLen);
+					++bTerm;
+				}
+				buf = bShift = 0;
+			}
+			break;
+		case 4: // 長さ・距離符号テーブル復号処理 符号読み取り
+			buf = (buf << 1) | getBit();
+			++bShift;
+			if (bShift >= hMinBits) {
+				int code = searchCode(alphaTable, 0, hCBitLen, 0, 19, buf, bShift);
+				if (code >= 0) {
+					if (code <= 15) {
+						if (code > 0) {
+							if (bNLen < hLit + 257) {
+								if ((code < bMinBitsL) || (bMinBitsL == 0)) {
+									bMinBitsL = code;
+								}
+							} else {
+								if ((code < bMinBitsD) || (bMinBitsD == 0)) {
+									bMinBitsD = code;
+								}
+							}
+						}
+						ldBitLen[bNLen] = code;
+						++bNLen;
+						if (bNLen == bLen) {
+							makeCustomTables(); // 長さ・符号テーブルの復号
+						}
+					} else  { // code <= 18 のはず
+						bTerm = code - 11; // 5 - 7 
+					}
+					buf = bShift = 0;
+				}
+			}
+			break;
+		case 5: //　長さ・距離符号テーブル復号処理　符号16 拡張2ビット読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == 2) {
+				buf += 3;
+				for (int i = 0; i < buf && bNLen < bLen; i++) {
+					ldBitLen[bNLen] = ldBitLen[bNLen - 1]; // 直前の符号を繰り返す
+					++bNLen;
+				}
+				if (bNLen == bLen) {
+					makeCustomTables();
+				} else {
+					bTerm = 4;
+				}
+				buf = bShift = 0;
+			}
+			break;
+		case 6: //　長さ・距離符号テーブル復号処理　符号17 拡張3ビット読み込み
+		case 7: //　長さ・距離符号テーブル復号処理　符号18 拡張7ビット読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == (3 + ((bTerm - 6) << 2))) { 
+				buf += 3 + ((bTerm - 6) << 2);
+				for (int i = 0; i < buf && bNLen < bLen; i++) {
+					ldBitLen[bNLen] = 0; // 0の符号を繰り返す
+					++bNLen;
+				}
+				if (bNLen == bLen) {
+					makeCustomTables();
+				} else {
+					bTerm = 4;
+				}
+				buf = bShift = 0;
+			}
+			break;
+		case 8: // データの復号 長さ符号の読み込み
+			buf = (buf << 1) | getBit();
+			++bShift;
+			if (bShift >= bMinBitsL) {
+				int code = searchCode(customLength, 0, ldBitLen, 0, hLit + 257, buf, bShift);
+				if (code >= 0) {
+					buf = bShift = 0;
+					if (code <= 255) { // リテラル値
+						putByte(b, off, (byte)code);
+						return 1;
+					} else if (code == 256) { // ブロックの終わり
+						nextBlock();
+					} else if (code <= 285) { // 長さ符号  257 <= code <= 285
+						bLen = getLength(code);
+						bNLen = getLengthExBitsSize(code);
+						if (bNLen > 0) {
+							bTerm = 9;
+						} else { // bNLen == 0
+							bTerm = 10;
+						}
+					} else { // 使われない 286 287
+						finish = true;
+						throw new DataFormatException();
+					}
+				}
+			}
+			break;
+		case 9:  // 長さ符号の拡張ビットの読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == bNLen) {
+				bLen += buf;
+				bTerm = 10;
+				buf = bShift = 0;
+			}
+			break;
+		case 10: // 距離符号の読み込み
+			buf = (buf << 1) | getBit();
+			++bShift;
+			if (bShift >= bMinBitsD) {
+				int code = searchCode(customDistance, 0, ldBitLen, hLit + 257, hDist, buf, bShift);
+				if (code >= 0) {
+					bDist = getDistance(code);
+					bNLen = getDistanceExBitsSize(code);
+					if (bNLen > 0) {
+						bTerm = 11;
+						buf = bShift = 0;
+					} else { // bNLen == 0
+						bTerm = 12;
+						decomp = true;
+						buf = referIndex;
+					}					
+				}
+			}
+			break;
+		case 11: // 距離符号の拡張ビットの読み込み
+			buf |= getBit() << bShift;
+			++bShift;
+			if (bShift == bNLen) {
+				bDist += buf;
+				bNLen = 0;
+				bTerm = 12;
+				decomp = true;
+				buf = referIndex;
+			}
+			break;
+		case 12: // 圧縮解除
+			int pos = (buf - bDist + bNLen) & Inflater.REFER_MASK;
+			putByte(b, off, refer[pos]);
+			++bNLen;
+			if (bNLen >= bDist) {
+				bNLen -= bDist;
+			}
+			--bLen;
+			if (bLen == 0) {
+				decomp = false;
+				bTerm = 8;
+				buf = bShift = 0;
 			}
 			return 1;
 		}
@@ -393,10 +667,19 @@ public class Inflater {
 	}
 	
 	public void end() {
+		lengthTable = null;
+		distanceTable = null;
 		refer = null;
+
 		buffer = null;
 		out = null;
 		adler = null;
+		
+		hCBitLen = null;
+		alphaTable = null;
+		ldBitLen = null;
+		customLength = null;
+		customDistance = null;
 	}
 	
 	public boolean needsInput() {
