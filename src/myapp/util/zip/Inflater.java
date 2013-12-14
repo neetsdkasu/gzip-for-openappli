@@ -105,6 +105,8 @@ public class Inflater {
 		else return (alpha - 2) >> 1;
 	}
 	
+	private long bytesRead;
+	private long bytesWritten;
 	
 	private Adler32 adler;
 	private byte[] refer;
@@ -182,6 +184,7 @@ public class Inflater {
 			buffer = out.toByteArray();
 			out.reset();
 			bufferIndex = 0;
+			bytesRead += buffer.length;
 			emptyInput = false;
 		}
 		int count = 0;
@@ -218,6 +221,7 @@ public class Inflater {
 		if ((adler != null) && (count > 0)) {
 			adler.update(b, off, len);
 		}
+		bytesWritten += count;
 		
 		return count;
 	}
@@ -652,6 +656,8 @@ public class Inflater {
 	}
 
 	public void reset() {
+		bytesRead = 0;
+		bytesWritten = 0;
 		buffer = null;
 		out.reset();
 		emptyInput = true;
@@ -701,5 +707,41 @@ public class Inflater {
 	public int getAdler() {
 		if (adler == null) return 0;
 		return (int)adler.getValue();
+	}
+	
+	public long getBytesRead() {
+		return bytesRead + out.size();
+	}
+	
+	public long getBytesWritten() {
+		return bytesWritten;
+	}
+	
+	public int getRemaining() {
+		if (buffer != null) {
+			return (buffer.length - bufferIndex) + out.size(); 
+		} else {
+			return out.size();
+		}
+	}
+	
+	public int getTotalIn() {
+		return (int)getBytesRead();
+	}
+	
+	public int getTotalOut() {
+		return (int)getBytesWritten();
+	}
+	
+	public boolean needsDictionary() {
+		return false; // TODO myapp.util.zip.Inflater.needsDictionary()‚Ìˆ—‚ğ‘‚­ 
+	}
+	
+	public void setDictionary(byte[] b) {
+		setDictionary(b, 0, b.length);
+	}
+	
+	public void setDictionary(byte[] b, int off, int len) {
+		// TODO myapp.util.zip.Inflater.setDictionary(byte[], int, int) ‚Ìˆ—‚ğ‘‚­
 	}
 }
