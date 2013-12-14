@@ -24,28 +24,28 @@ public class FilterInputStream extends InputStream {
 		super.close();
 	}
 
-	public synchronized void mark(int arg0) {
-		in.mark(arg0);
+	public synchronized void mark(int readlimit) {
+		in.mark(readlimit);
 	}
 
 	public boolean markSupported() {
 		return in.markSupported();
 	}
 
-	public int read(byte[] arg0, int arg1, int arg2) throws IOException {
-		return in.read(arg0, arg1, arg2);
+	public int read(byte[] b, int off, int len) throws IOException {
+		return in.read(b, off, len);
 	}
 
-	public int read(byte[] arg0) throws IOException {
-		return in.read(arg0);
+	public int read(byte[] b) throws IOException {
+		return read(b, 0, b.length);
 	}
 
 	public synchronized void reset() throws IOException {
 		in.reset();
 	}
 
-	public long skip(long arg0) throws IOException {
-		return in.skip(arg0);
+	public long skip(long n) throws IOException {
+		return in.skip(n);
 	}
 
 }
