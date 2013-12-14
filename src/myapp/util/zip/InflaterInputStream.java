@@ -8,7 +8,7 @@ import myapp.util.NullArgumentException;
 
 public class InflaterInputStream extends FilterInputStream {
 
-	private static final int DEFAULT_BUFFER_SIZE = 1000;
+	private static final int DEFAULT_BUFFER_SIZE = 512;
 	
 	protected int len;
 	protected byte[] buf;
@@ -31,6 +31,7 @@ public class InflaterInputStream extends FilterInputStream {
 			inf = new Inflater();
 		}
 		this.inf = inf;
+		buf = new byte[size];
 		len = 0;
 	}
 
@@ -93,11 +94,11 @@ public class InflaterInputStream extends FilterInputStream {
 
 	@Override
 	public long skip(long n) throws IOException {
-		byte[] b = new byte[1000];
+		byte[] b = new byte[1024];
 		long len = n;
 		int tmp = 0;
 		while (len > 0L) {
-			if (len > 1000L) {
+			if (len > 1024L) {
 				tmp = read(b);
 			} else {
 				tmp = read(b, 0, (int)len);
