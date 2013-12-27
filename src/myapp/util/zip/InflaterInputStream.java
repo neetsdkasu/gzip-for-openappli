@@ -8,7 +8,7 @@ import myapp.util.NullArgumentException;
 
 public class InflaterInputStream extends FilterInputStream {
 
-	private static final int DEFAULT_BUFFER_SIZE = 512;
+	private static final int DEFAULT_BUFFER_SIZE = 256;
 	
 	protected int len;
 	protected byte[] buf;
@@ -31,29 +31,30 @@ public class InflaterInputStream extends FilterInputStream {
 			inf = new Inflater();
 		}
 		this.inf = inf;
-		buf = new byte[size];
-		len = 0;
+		this.buf = new byte[size];
+		this.len = 0;
 	}
 
 	@Override
 	public synchronized void mark(int readlimit) {
+		// Not Supported Method
 	}
 
 	@Override
 	public boolean markSupported() {
-		return false;
+		return false; // Not Supported Method
 	}
 
 	@Override
 	public synchronized void reset() throws IOException {
-		throw new IOException();
+		throw new IOException(); // Not Supported Method
 	}
 
 	protected void fill() throws IOException {
-		if (len < buf.length) {
-			int tmp = super.read(buf, len, buf.length - len);
+		if (this.len < this.buf.length) {
+			int tmp = super.read(this.buf, this.len, this.buf.length - this.len);
 			if (tmp > 0) {
-				len += tmp;
+				this.len += tmp;
 			}
 		}
 	}
@@ -61,9 +62,9 @@ public class InflaterInputStream extends FilterInputStream {
 	@Override
 	public int read() throws IOException {
 		byte[] b = new byte[1];
-		int c = read(b, 0, 1);
+		int c = this.read(b, 0, 1);
 		if (c > 0) {
-			return (int)b[0]; 
+			return 0xFF & (int)b[0]; 
 		} else {
 			return available() - 1;
 		}
@@ -71,7 +72,7 @@ public class InflaterInputStream extends FilterInputStream {
 
 	@Override
 	public int available() throws IOException {
-		if (inf.finished() || (super.available() == 0)) {
+		if (this.inf.finished() || (super.available() == 0)) {
 			return 0;
 		} else {
 			return 1;
@@ -80,16 +81,41 @@ public class InflaterInputStream extends FilterInputStream {
 
 	@Override
 	public void close() throws IOException {
-		inf.end();
-		inf = null;
-		buf = null;
+		this.inf.end();
+		this.inf = null;
+		this.buf = null;
 		super.close();
 	}
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		// TODO 自動生成されたメソッド・スタブ
-		return super.read(b, off, len);
+		try {
+			int off2 = off;
+			int len2 = len;
+			int size;
+			while ((len2 > 0) && !this.inf.finished()) {
+				size = this.inf.inflate(b, off2, len2);
+				if (size == 0) {
+					if (this.inf.finished()) {
+						break;
+					} else if (this.inf.needsInput()) {
+						this.len = 0;
+						this.fill();
+						this.inf.setInput(this.buf, 0, this.len);
+					} else if (this.inf.needsDictionary()) {
+						// TODO ZLIB用
+					} else {
+						throw new IOException();
+					}
+				} else {
+					off2 += size;
+					len2 -= size;
+				}
+			}
+			return len - len2;
+		} catch (DataFormatException ex) {
+			throw new IOException(ex);
+		}
 	}
 
 	@Override
@@ -101,7 +127,7 @@ public class InflaterInputStream extends FilterInputStream {
 			if (len > 1024L) {
 				tmp = read(b);
 			} else {
-				tmp = read(b, 0, (int)len);
+				tmp = this.read(b, 0, (int)len);
 			}
 			if (tmp > 0) {
 				len -= (long)tmp;
