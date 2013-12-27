@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.zip.GZIPInputStream;
 
+import myapp.util.zip.Inflater;
+import myapp.util.zip.InflaterInputStream;
+
 
 public class Hoge {
 
@@ -47,27 +50,44 @@ public class Hoge {
 	    		  , (byte)0x01, (byte)0x6C, (byte)0xF6, (byte)0xCE, (byte)0x4A, (byte)0xDA, (byte)0xC9, (byte)0x9E, (byte)0x21, (byte)0x80, (byte)0xAA, (byte)0xC8, (byte)0x1F, (byte)0x3F, (byte)0x7E, (byte)0x7C
 	    		  , (byte)0x1F, (byte)0x3F, (byte)0x22, (byte)0x32, (byte)0x3C, (byte)0xFF, (byte)0x0F
 	     };
-	     int compressedDataLength = output.length;
+	     // int compressedDataLength = output.length;
 	     
-//	     java.util.zip.Deflater compresser = 
-//	    		 new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, true);
-//	     compresser.setInput(input);
-//	     compresser.finish();
-//	     int compressedDataLength = compresser.deflate(output);
-//	     compresser.end();	
+	     java.util.zip.Deflater compresser = 
+	    		 new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, true);
+	     compresser.setInput(input);
+	     compresser.finish();
+	     output = new byte[100];
+	     int compressedDataLength = compresser.deflate(output);
+	     compresser.end();	
+	     
+	     ByteArrayInputStream bais = new ByteArrayInputStream(output, 0, compressedDataLength);
+	     
+	     InflaterInputStream in = new InflaterInputStream(bais, new myapp.util.zip.Inflater(true));
 	     
 	     
+//	     int k;
+//	     while ((k = in.read()) >= 0) {
+//	    	 System.out.println(k);
+//	     }
+	     
+	     
+	     byte[] result = new byte[100];
+	     
+	     int size = in.read(result);
+	     
+	     System.out.println(size);
+	     System.out.println(new String(result, 0, size));
 	     
 	     
 	     // Decompress the bytes
-	     myapp.util.zip.Inflater decompresser = new myapp.util.zip.Inflater(true);
-	     decompresser.setInput(output, 0, compressedDataLength);
-	     byte[] result = new byte[100];
-	     int resultLength = decompresser.inflate(result);
-	     decompresser.end();	    
+	     //myapp.util.zip.Inflater decompresser = new myapp.util.zip.Inflater(true);
+	     //decompresser.setInput(output, 0, compressedDataLength);
+	     //byte[] result = new byte[100];
+	     //int resultLength = decompresser.inflate(result);
+	     //decompresser.end();	    
 	     
-	     System.out.println(resultLength);
-	     System.out.println(new String(result, 0, resultLength));
+	     //System.out.println(resultLength);
+	     //System.out.println(new String(result, 0, resultLength));
 	     
 	     
 	}
