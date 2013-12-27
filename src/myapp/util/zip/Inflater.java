@@ -689,7 +689,7 @@ public class Inflater {
 	}
 	
 	public boolean needsInput() {
-		return emptyInput;
+		return !finish && emptyInput;
 	}
 	
 	public boolean finished(){
