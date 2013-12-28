@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import myapp.io.FilterInputStream;
-import myapp.util.NullArgumentException;
 
 public class InflaterInputStream extends FilterInputStream {
 
@@ -99,11 +98,15 @@ public class InflaterInputStream extends FilterInputStream {
 					if (this.inf.finished()) {
 						break;
 					} else if (this.inf.needsInput()) {
+						if (super.available() == 0) {
+							break;
+						}
 						this.len = 0;
 						this.fill();
 						this.inf.setInput(this.buf, 0, this.len);
 					} else if (this.inf.needsDictionary()) {
-						// TODO ZLIB用
+						// プリセット辞書には未対応
+						throw new IOException("Not Support 'Preset Dictionary'");
 					} else {
 						throw new IOException();
 					}
