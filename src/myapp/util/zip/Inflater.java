@@ -1,7 +1,6 @@
 package myapp.util.zip;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.ref.WeakReference;
 
 /**Deflate圧縮解除クラス。
@@ -114,6 +113,7 @@ public class Inflater {
 	private ByteArrayOutputStream out;
 	private boolean emptyInput;
 	private boolean finish;
+	private boolean errorFinish;
 	private int bufferIndex;
 	private int referIndex; 
 	private int shift;
@@ -137,11 +137,18 @@ public class Inflater {
 	private int[] hCBitLen = null;
 	private int[] alphaTable = null;
 	private int hMinBits;
+	private int hMaxBits;
 	private int[] ldBitLen = null;
 	private int[] customLength = null;
 	private int[] customDistance = null;
 	private int bMinBitsL;
 	private int bMinBitsD;
+	
+	// ZLIB 関連
+	private final boolean nowrap;
+	private byte zlibCMF;
+	private byte zlibFLG;
+	private int checkAdler;
 	
 	public Inflater() {
 		this(false);
@@ -151,6 +158,7 @@ public class Inflater {
 	 * @param nowrap	trueならGZIP、falseならZLIB。
 	 */
 	public Inflater(boolean nowrap) {
+		this.nowrap = nowrap;
 		if (nowrap) {
 			adler = null;
 		} else {
@@ -188,7 +196,7 @@ public class Inflater {
 			emptyInput = false;
 		}
 		int count = 0;
-		while (count < len && (decomp || (!emptyInput && !finish))) {
+		while ((!errorFinish) && (count < len) && (decomp || (!emptyInput && !finish))) {
 			switch (term) {
 			case 0:
 				bFinal = (getBit() == 1);
@@ -203,7 +211,7 @@ public class Inflater {
 				bTerm = bShift = bLen = bNLen = buf = 0;
 				term = 3 + bType;
 				if (bType == 3) { // エラー
-					finish = true;
+					errorFinish = true;
 					throw new DataFormatException();
 				}
 				break;
@@ -216,14 +224,51 @@ public class Inflater {
 			case 5: // カスタムハフマン
 				count += inflate10(b, off + count);
 				break;
+			case 6: // ZLIB ヘッダ CMF
+				zlibCMF = getByte();
+				if ((0xFF & (int)zlibCMF) != 0x78) {
+					errorFinish = true;
+					throw new DataFormatException("CMF must be 0x78");
+				}
+				term = 7;
+				break;
+			case 7: // ZLIB ヘッダ FLG
+				zlibFLG = getByte();
+				int fcheck = ((0xFF & (int)zlibCMF) << 8) | (0xFF & (int)zlibFLG);
+				if ((fcheck % 31) != 0) {
+					errorFinish = true;
+					throw new DataFormatException("wrong format 'FCHECK'"); // フォーマットエラー
+				}
+				if ((zlibFLG & 0x20) != 0) {
+					errorFinish = true;
+					throw new DataFormatException("Not Support 'Preset dictionary'"); // プリセット辞書には未対応
+				}
+				term = 0;
+				break;
+			case 8: // ZLIB チェックサムの読み込み
+				checkAdler = (checkAdler << 8) | getByteValue();
+				++bShift;
+				if (bShift == 4) {
+					finish = true;
+				}
+				break;
 			}
 		}
-		if ((adler != null) && (count > 0)) {
-			adler.update(b, off, len);
+		if (!nowrap) { // ZLIB の後処理
+			if (count > 0) {
+				adler.update(b, off, count);
+			}
+			if (finish) {
+				if (getAdler() != checkAdler) {
+					errorFinish = true;
+					throw new DataFormatException("incorrect data check");
+				}
+			}
 		}
 		bytesWritten += count;
 		
 		return count;
+
 	}
 	
 
@@ -247,7 +292,15 @@ public class Inflater {
 	private void nextBlock() {
 		term = 0;
 		if (bFinal) {
-			finish = true;
+			if (nowrap) {
+				finish = true;
+			} else {
+				term = 8; // Adler値の読み込みへ
+				bShift = 0;
+				while (shift > 0) { // バイト境界まで読み飛ばし
+					getBit();
+				}
+			}
 		}
 	}
 	
@@ -275,6 +328,7 @@ public class Inflater {
 		case 4: // HLENの下位バイト読み込み
 			bNLen |= getByteValue() << 8;
 			if ((bLen ^ bNLen) != 0) {
+				errorFinish = true;
 				throw new DataFormatException();
 			}
 			if (bLen == 0) {
@@ -331,7 +385,7 @@ public class Inflater {
 					}
 					buf = bShift = 0;
 				} else if ((buf == 0xC6) || (buf == 0xC7) ) { // 発生しえない長さ符号 286-287
-					finish = true;
+					errorFinish = true;
 					throw new DataFormatException();
 				}
 				break;
@@ -341,7 +395,7 @@ public class Inflater {
 					buf = bShift = 0;
 					return 1;
 				} else {
-					finish = true;
+					errorFinish = true;
 					throw new DataFormatException();
 				}
 			}
@@ -480,7 +534,7 @@ public class Inflater {
 			++bShift;
 			if (bShift == 4) {
 				hCBitLen = initArray(hCBitLen, 19);
-				buf = bShift = bLen = bNLen = hMinBits = 0;
+				buf = bShift = bLen = bNLen = hMinBits = hMaxBits = 0;
 				++bTerm;
 			}
 			break;
@@ -490,7 +544,12 @@ public class Inflater {
 			if (bShift == 3) {
 				hCBitLen[Inflater.HCINDEXES[bNLen]] = buf;
 				if ((buf < hMinBits) || (hMinBits == 0)) {
-					hMinBits = buf;
+					if (buf > 0) {
+						hMinBits = buf;
+					}
+				}
+				if (buf > hMaxBits) {
+					hMaxBits = buf;
 				}
 				++bNLen;
 				if (bNLen == (hCLen + 4)) {
@@ -510,6 +569,10 @@ public class Inflater {
 			buf = (buf << 1) | getBit();
 			++bShift;
 			if (bShift >= hMinBits) {
+				if (bShift > hMaxBits) {
+					errorFinish = true;
+					throw new DataFormatException();
+				}
 				int code = searchCode(alphaTable, 0, hCBitLen, 0, 19, buf, bShift);
 				if (code >= 0) {
 					if (code <= 15) {
@@ -529,8 +592,11 @@ public class Inflater {
 						if (bNLen == bLen) {
 							makeCustomTables(); // 長さ・符号テーブルの復号
 						}
-					} else  { // code <= 18 のはず
+					} else if (code <= 18)  { // code <= 18 のはず
 						bTerm = code - 11; // 5 - 7 
+					} else {
+						errorFinish = true;
+						throw new DataFormatException();
 					}
 					buf = bShift = 0;
 				}
@@ -558,10 +624,14 @@ public class Inflater {
 			buf |= getBit() << bShift;
 			++bShift;
 			if (bShift == (3 + ((bTerm - 6) << 2))) { 
-				buf += 3 + ((bTerm - 6) << 2);
-				for (int i = 0; i < buf && bNLen < bLen; i++) {
+				buf += 3 + ((bTerm - 6) << 3);
+				for (int i = 0; i < buf; i++) {
 					ldBitLen[bNLen] = 0; // 0の符号を繰り返す
 					++bNLen;
+					if (bNLen > bLen) {
+						errorFinish = true;
+						throw new DataFormatException();
+					}
 				}
 				if (bNLen == bLen) {
 					makeCustomTables();
@@ -592,7 +662,7 @@ public class Inflater {
 							bTerm = 10;
 						}
 					} else { // 使われない 286 287
-						finish = true;
+						errorFinish = true;
 						throw new DataFormatException();
 					}
 				}
@@ -618,11 +688,14 @@ public class Inflater {
 					if (bNLen > 0) {
 						bTerm = 11;
 						buf = bShift = 0;
-					} else { // bNLen == 0
+					} else if (bNLen == 0) { // bNLen == 0
 						bTerm = 12;
 						decomp = true;
 						buf = referIndex;
-					}					
+					} else {
+						errorFinish = true;
+						throw new DataFormatException();
+					}
 				}
 			}
 			break;
@@ -662,17 +735,25 @@ public class Inflater {
 		out.reset();
 		emptyInput = true;
 		finish = false;
+		errorFinish = false;
 		bufferIndex = 0;
 		referIndex = 0;
 		shift = 0;
-		term = 0;
 		decomp = false;
-		if (adler != null) {
+		zlibCMF = 0;
+		zlibFLG = 0;
+		checkAdler = 0;
+		if (nowrap) {
+			term = 0;
+		} else {
+			term = 6;
 			adler.reset();
 		}
 	}
 	
 	public void end() {
+		errorFinish = true;
+		
 		lengthTable = null;
 		distanceTable = null;
 		refer = null;
@@ -689,11 +770,11 @@ public class Inflater {
 	}
 	
 	public boolean needsInput() {
-		return !finish && emptyInput;
+		return emptyInput && !finished();
 	}
 	
 	public boolean finished(){
-		return finish;
+		return finish || errorFinish;
 	}
 	
 	public void setInput(byte[] b) {
@@ -734,7 +815,7 @@ public class Inflater {
 	}
 	
 	public boolean needsDictionary() {
-		return false; // TODO myapp.util.zip.Inflater.needsDictionary()の処理を書く 
+		return false; // プリセット辞書には対応しない予定です 
 	}
 	
 	public void setDictionary(byte[] b) {
@@ -742,6 +823,6 @@ public class Inflater {
 	}
 	
 	public void setDictionary(byte[] b, int off, int len) {
-		// TODO myapp.util.zip.Inflater.setDictionary(byte[], int, int) の処理を書く
+		// プリセット辞書には対応しない予定です
 	}
 }
