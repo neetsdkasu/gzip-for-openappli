@@ -2,6 +2,11 @@ package myapp.util.zip;
 
 public class DataFormatException extends Exception {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
 	public DataFormatException() {
 		super();
 		// TODO 自動生成されたコンストラクター・スタブ
