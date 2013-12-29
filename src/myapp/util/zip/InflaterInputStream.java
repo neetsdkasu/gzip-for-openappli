@@ -7,7 +7,7 @@ import myapp.io.FilterInputStream;
 
 public class InflaterInputStream extends FilterInputStream {
 
-	private static final int DEFAULT_BUFFER_SIZE = 256;
+	static final int DEFAULT_BUFFER_SIZE = 256;
 	
 	protected int len;
 	protected byte[] buf;
@@ -30,8 +30,8 @@ public class InflaterInputStream extends FilterInputStream {
 			inf = new Inflater();
 		}
 		this.inf = inf;
-		this.buf = new byte[size];
-		this.len = 0;
+		buf = new byte[size];
+		len = 0;
 	}
 
 	@Override
@@ -50,10 +50,10 @@ public class InflaterInputStream extends FilterInputStream {
 	}
 
 	protected void fill() throws IOException {
-		if (this.len < this.buf.length) {
-			int tmp = super.read(this.buf, this.len, this.buf.length - this.len);
+		if (len < buf.length) {
+			int tmp = in.read(buf, len, buf.length - len);
 			if (tmp > 0) {
-				this.len += tmp;
+				len += tmp;
 			}
 		}
 	}
@@ -61,17 +61,17 @@ public class InflaterInputStream extends FilterInputStream {
 	@Override
 	public int read() throws IOException {
 		byte[] b = new byte[1];
-		int c = this.read(b, 0, 1);
+		int c = read(b, 0, 1);
 		if (c > 0) {
 			return 0xFF & (int)b[0]; 
 		} else {
-			return available() - 1;
+			return -1;
 		}
 	}
 
 	@Override
 	public int available() throws IOException {
-		if (this.inf.finished() || (super.available() == 0)) {
+		if (inf.finished() || (in.available() == 0)) {
 			return 0;
 		} else {
 			return 1;
@@ -80,10 +80,10 @@ public class InflaterInputStream extends FilterInputStream {
 
 	@Override
 	public void close() throws IOException {
-		this.inf.end();
-		this.inf = null;
-		this.buf = null;
-		super.close();
+		inf.end();
+		inf = null;
+		buf = null;
+		in.close();
 	}
 
 	@Override
@@ -92,19 +92,19 @@ public class InflaterInputStream extends FilterInputStream {
 			int off2 = off;
 			int len2 = len;
 			int size;
-			while ((len2 > 0) && !this.inf.finished()) {
-				size = this.inf.inflate(b, off2, len2);
+			while ((len2 > 0) && !inf.finished()) {
+				size = inf.inflate(b, off2, len2);
 				if (size == 0) {
-					if (this.inf.finished()) {
+					if (inf.finished()) {
 						break;
-					} else if (this.inf.needsInput()) {
-						if (super.available() == 0) {
+					} else if (inf.needsInput()) {
+						if (in.available() == 0) {
 							break;
 						}
 						this.len = 0;
-						this.fill();
-						this.inf.setInput(this.buf, 0, this.len);
-					} else if (this.inf.needsDictionary()) {
+						fill();
+						inf.setInput(buf, 0, this.len);
+					} else if (inf.needsDictionary()) {
 						// プリセット辞書には未対応
 						throw new IOException("Not Support 'Preset Dictionary'");
 					} else {
@@ -130,7 +130,7 @@ public class InflaterInputStream extends FilterInputStream {
 			if (len > 1024L) {
 				tmp = read(b);
 			} else {
-				tmp = this.read(b, 0, (int)len);
+				tmp = read(b, 0, (int)len);
 			}
 			if (tmp > 0) {
 				len -= (long)tmp;
