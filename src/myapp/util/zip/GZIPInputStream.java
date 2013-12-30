@@ -39,8 +39,8 @@ public class GZIPInputStream extends InflaterInputStream {
 		
 		// FLG.FEXTRA
 		if ((FLG & 0x4) > 0) {
-			int xlen = cin.read() << 8;
-			xlen |= cin.read();
+			int xlen = cin.read();
+			xlen |= cin.read() << 8;
 			cin.skip(xlen);
 		}
 		
@@ -56,8 +56,8 @@ public class GZIPInputStream extends InflaterInputStream {
 		
 		// FLG.FHCRC
 		if ((FLG & 0x2) > 0) {
-			int crc16 = in.read() << 8;
-			crc16 |= in.read();
+			int crc16 = in.read();
+			crc16 |= in.read() << 8;
 			if (crc16 != (int)(0xFFFFL & cin.getChecksum().getValue())) {
 				throw new ZipException("incorrect header check");
 			}
