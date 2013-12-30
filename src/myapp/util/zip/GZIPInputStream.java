@@ -10,6 +10,8 @@ public class GZIPInputStream extends InflaterInputStream {
 	protected CRC32 crc;
 	protected boolean eos = false;
 	
+	private CheckedInputStream cin;
+	
 	public GZIPInputStream(InputStream in) throws IOException {
 		this(in, InflaterInputStream.DEFAULT_BUFFER_SIZE);
 	}
@@ -17,7 +19,7 @@ public class GZIPInputStream extends InflaterInputStream {
 	public GZIPInputStream(InputStream in, int size) throws IOException {
 		super(in, new Inflater(true), size);
 		
-		CheckedInputStream cin = new CheckedInputStream(in, new CRC32());
+		cin = new CheckedInputStream(in, new CRC32());
 		
 		int magic = cin.read();
 		magic |= cin.read() << 8;
@@ -67,6 +69,7 @@ public class GZIPInputStream extends InflaterInputStream {
 	@Override
 	public void close() throws IOException {
 		crc = null;
+		cin.close();
 		super.close();
 	}
 
