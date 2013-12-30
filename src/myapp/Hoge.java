@@ -18,7 +18,7 @@ public class Hoge {
 //		hoge.testAdler32();
 		
 		myapp.util.zip.GZIPInputStream in =
-				new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog2.gz"));
+				new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
 		byte[] data = new byte[100];
 		int len;
 		ByteArrayOutputStream buf = new ByteArrayOutputStream();
