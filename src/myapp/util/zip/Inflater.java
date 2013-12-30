@@ -142,7 +142,9 @@ public class Inflater {
 	private int[] customLength = null;
 	private int[] customDistance = null;
 	private int bMinBitsL;
+	private int bMaxBitsL;
 	private int bMinBitsD;
+	private int bMaxBitsD;
 	
 	// ZLIB ŠÖ˜A
 	private final boolean nowrap;
@@ -558,7 +560,7 @@ public class Inflater {
 					makeCodeTable(alphaTable, 0, hCBitLen, 0, 19);
 					bLen = (hLit + 257) + hDist + 1; 
 					bNLen = 0;
-					bMinBitsD = bMinBitsL = 0;
+					bMinBitsD = bMinBitsL = bMaxBitsD = bMaxBitsL = 0;
 					ldBitLen = initArray(ldBitLen, bLen);
 					++bTerm;
 				}
@@ -581,9 +583,15 @@ public class Inflater {
 								if ((code < bMinBitsL) || (bMinBitsL == 0)) {
 									bMinBitsL = code;
 								}
+								if (code > bMaxBitsL) {
+									bMaxBitsL = code;
+								}
 							} else {
 								if ((code < bMinBitsD) || (bMinBitsD == 0)) {
 									bMinBitsD = code;
+								}
+								if (code > bMaxBitsD) {
+									bMaxBitsD = code;
 								}
 							}
 						}
@@ -645,6 +653,10 @@ public class Inflater {
 			buf = (buf << 1) | getBit();
 			++bShift;
 			if (bShift >= bMinBitsL) {
+				if (bShift > bMaxBitsL) {
+					errorFinish = true;
+					throw new DataFormatException();
+				}
 				int code = searchCode(customLength, 0, ldBitLen, 0, hLit + 257, buf, bShift);
 				if (code >= 0) {
 					buf = bShift = 0;
@@ -681,7 +693,11 @@ public class Inflater {
 			buf = (buf << 1) | getBit();
 			++bShift;
 			if (bShift >= bMinBitsD) {
-				int code = searchCode(customDistance, 0, ldBitLen, hLit + 257, hDist, buf, bShift);
+				if (bShift > bMaxBitsD) {
+					errorFinish = true;
+					throw new DataFormatException();
+				}
+				int code = searchCode(customDistance, 0, ldBitLen, hLit + 257, hDist + 1, buf, bShift);
 				if (code >= 0) {
 					bDist = getDistance(code);
 					bNLen = getDistanceExBitsSize(code);
@@ -800,7 +816,11 @@ public class Inflater {
 	
 	public int getRemaining() {
 		if (buffer != null) {
-			return (buffer.length - bufferIndex) + out.size(); 
+			if (shift > 0) {
+				return (buffer.length - bufferIndex - 1) + out.size();
+			} else {
+				return (buffer.length - bufferIndex) + out.size();
+			}
 		} else {
 			return out.size();
 		}
