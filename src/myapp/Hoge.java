@@ -5,10 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.zip.GZIPInputStream;
 
-import myapp.util.zip.Inflater;
 import myapp.util.zip.InflaterInputStream;
 
 
@@ -16,29 +13,35 @@ public class Hoge {
 
 	public static void main(String[] args) throws java.lang.Exception  {
 		Hoge hoge = new Hoge();
+		
 //		hoge.testCRC32();
 //		hoge.testAdler32();
 		
-//		GZIPInputStream in = new GZIPInputStream(new FileInputStream("mjlog.gz"));
-//		byte[] data = new byte[100];
-//		int len;
-//		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-//		while ((len = in.read(data)) != -1) {
-//			buf.write(data, 0, len);
-//		}
-//		in.close();
-//		System.out.println(buf.toString());
+		myapp.util.zip.GZIPInputStream in =
+				new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog2.gz"));
+		byte[] data = new byte[100];
+		int len;
+		ByteArrayOutputStream buf = new ByteArrayOutputStream();
+		while ((len = in.read(data)) != -1) {
+			buf.write(data, 0, len);
+		}
+		in.close();
+		System.out.println(buf.toString());
 		
-		hoge.testInflater();
+//		hoge.testInflater();
 	}
 	
 	public Hoge() {
 	}
 	
 	public void testInflater() throws Exception {
-	     // Encode a String into bytes
-	     String inputString = "blahblahblah";
-	     byte[] input = inputString.getBytes("UTF-8");
+	    boolean nowrap = false; 
+		
+		// Encode a String into bytes
+//	     String inputString = "Blah blah blah blah blah!";
+//	     String inputString = "あいうえおかきくけこさしすせそたちつてと";
+	     String inputString = "あいうえおかきくけこさしすせそ";
+	     byte[] input = inputString.getBytes();
 	     
 	     // Compress the bytes
 	     byte[] output = new byte[] {
@@ -50,46 +53,88 @@ public class Hoge {
 	    		  , (byte)0x01, (byte)0x6C, (byte)0xF6, (byte)0xCE, (byte)0x4A, (byte)0xDA, (byte)0xC9, (byte)0x9E, (byte)0x21, (byte)0x80, (byte)0xAA, (byte)0xC8, (byte)0x1F, (byte)0x3F, (byte)0x7E, (byte)0x7C
 	    		  , (byte)0x1F, (byte)0x3F, (byte)0x22, (byte)0x32, (byte)0x3C, (byte)0xFF, (byte)0x0F
 	     };
-	     // int compressedDataLength = output.length;
+	     int compressedDataLength = output.length;
 	     
 	     java.util.zip.Deflater compresser = 
-	    		 new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, true);
+	    		 new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, nowrap);
 	     compresser.setInput(input);
 	     compresser.finish();
 	     output = new byte[100];
-	     int compressedDataLength = compresser.deflate(output);
+	     compressedDataLength = compresser.deflate(output);
 	     compresser.end();	
 	     
+	     
+	     // 圧縮されたデータのチェック
+	     System.out.println("入力文字列: '" + inputString + "'");
+	     for (int i = 0; i < input.length; i++) {
+	    	System.out.printf("%02X ", input[i]);
+	    	if ((i % 16) == 15) System.out.println();
+	     }	     
+	     System.out.println();
+	     System.out.println("元のサイズ: " + input.length);
+	     System.out.println("圧縮後のサイズ: " + compressedDataLength);
+	     if (!nowrap) {
+	    	 System.out.printf("CM: %d\n", 0xF & (int)output[0]);
+	    	 System.out.printf("CMINFO: %d\n", 0xF & (((int)output[0]) >> 4));
+	    	 System.out.printf("FCHECK: %d\n", 0x1F &  (int)output[1]);
+	    	 System.out.printf("FDICT: %d\n", 0x1 & (((int)output[1]) >> 5));
+	    	 System.out.printf("FLEVEL: %d\n", 0x3 & (((int)output[1]) >> 6));
+	     }
+	     for (int i = 0; i < compressedDataLength; i++) {
+			System.out.printf("%02X ", output[i]);
+			if ((i % 16) == 15) System.out.println();
+	     }	     
+	     System.out.println();
+	     for (int i = 0; i < compressedDataLength; i++) {
+	    	 printBit((byte)reverseBit(output[i]));
+	    	 System.out.print(" ");
+	    	if ((i % 16) == 15) System.out.println();
+	     }	     
+	     System.out.println();
+	     
+	     
+	     
+	     // InflaterInputStreamのテスト
 	     ByteArrayInputStream bais = new ByteArrayInputStream(output, 0, compressedDataLength);
-	     
-	     InflaterInputStream in = new InflaterInputStream(bais, new myapp.util.zip.Inflater(true));
-	     
-	     
+	     InflaterInputStream in = new InflaterInputStream(bais, new myapp.util.zip.Inflater(nowrap));
+//	     // read() のテスト
 //	     int k;
 //	     while ((k = in.read()) >= 0) {
-//	    	 System.out.println(k);
+//	    	 System.out.print((char)k);
 //	     }
+//	     System.out.println();
+	     // read(b) のテスト
+	     byte[] result = new byte[200];
+	     int resultLength = in.read(result);
+	     System.out.println("size: " + resultLength);
+	     System.out.println(new String(result, 0, resultLength));
+	     in.close();
+
+     
+
+
+// 	     // Inflaterのテスト
+//	     // Decompress the bytes
+//	     myapp.util.zip.Inflater decompresser = new myapp.util.zip.Inflater(nowrap);
+//	     decompresser.setInput(output, 0, compressedDataLength);
+//	     byte[] result = new byte[200];
+//	     int resultLength = decompresser.inflate(result);
+//	     System.out.println("Adler: " + decompresser.getAdler());
+//	     System.out.printf("Adler: %08X\n", decompresser.getAdler());
+//	     decompresser.end();	    
+//	     System.out.println(resultLength);
+//	     System.out.println(new String(result, 0, resultLength));
+
 	     
+	     // チェック
+	     System.out.println("---復号データのチェック---");
+	     for (int i = 0; i < resultLength; i++) {
+	    	System.out.printf("%02X ", result[i]);
+	    	if ((i % 16) == 15) System.out.println();
+	     }	     
+	     System.out.println();
 	     
-	     byte[] result = new byte[100];
-	     
-	     int size = in.read(result);
-	     
-	     System.out.println(size);
-	     System.out.println(new String(result, 0, size));
-	     
-	     
-	     // Decompress the bytes
-	     //myapp.util.zip.Inflater decompresser = new myapp.util.zip.Inflater(true);
-	     //decompresser.setInput(output, 0, compressedDataLength);
-	     //byte[] result = new byte[100];
-	     //int resultLength = decompresser.inflate(result);
-	     //decompresser.end();	    
-	     
-	     //System.out.println(resultLength);
-	     //System.out.println(new String(result, 0, resultLength));
-	     
-	     
+	     System.out.println("---テストおわり---");
 	}
 
 	public void testChecksum(myapp.util.zip.Checksum cs1, java.util.zip.Checksum cs2) {
@@ -130,6 +175,14 @@ public class Hoge {
 		testChecksum(new myapp.util.zip.Adler32(), new java.util.zip.Adler32());
 	}
 
+	private void printBit(byte b) {
+		char[] s = new char[8];
+		for (int i = 0; i < 8; i++) { 
+			s[7 - i] = (char)((0x1 & (b >> i)) + '0');
+		}
+		System.out.print(s);
+	}
+	
 	private int reverseBit(int byteValue) {
 		return 
 				((byteValue & 0x1) << 7)
