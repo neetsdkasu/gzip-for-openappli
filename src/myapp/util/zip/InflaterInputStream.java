@@ -12,6 +12,7 @@ public class InflaterInputStream extends FilterInputStream {
 	protected int len;
 	protected byte[] buf;
 	protected Inflater inf;
+	private boolean nodata;
 	
 	public InflaterInputStream(InputStream in) {
 		this(in, new Inflater());
@@ -32,6 +33,7 @@ public class InflaterInputStream extends FilterInputStream {
 		this.inf = inf;
 		buf = new byte[size];
 		len = 0;
+		nodata = false;
 	}
 
 	@Override
@@ -54,6 +56,8 @@ public class InflaterInputStream extends FilterInputStream {
 			int tmp = in.read(buf, len, buf.length - len);
 			if (tmp > 0) {
 				len += tmp;
+			} else if (tmp < 0){
+				nodata = true;
 			}
 		}
 	}
@@ -71,11 +75,13 @@ public class InflaterInputStream extends FilterInputStream {
 
 	@Override
 	public int available() throws IOException {
-		if (inf.finished() || (in.available() == 0)) {
+		if (inf.finished()) {
 			return 0;
-		} else {
-			return 1;
 		}
+		if (inf.needsInput() && nodata) {
+			return 0;
+		}
+		return 1;
 	}
 
 	@Override
@@ -98,11 +104,11 @@ public class InflaterInputStream extends FilterInputStream {
 					if (inf.finished()) {
 						break;
 					} else if (inf.needsInput()) {
-						if (in.available() == 0) {
-							break;
-						}
 						this.len = 0;
 						fill();
+						if (nodata) {
+							break;
+						}
 						inf.setInput(buf, 0, this.len);
 					} else if (inf.needsDictionary()) {
 						// プリセット辞書には未対応
