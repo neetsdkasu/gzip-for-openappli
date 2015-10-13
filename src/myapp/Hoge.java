@@ -17,21 +17,41 @@ public class Hoge {
 //		hoge.testCRC32();
 //		hoge.testAdler32();
 		
-		myapp.util.zip.GZIPInputStream in =
-				new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
-		byte[] data = new byte[100];
-		int len;
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		while ((len = in.read(data)) != -1) {
-			buf.write(data, 0, len);
-		}
-		in.close();
-		System.out.println(buf.toString());
-		
+		hoge.testGZIPInputStream();
 //		hoge.testInflater();
 	}
 	
 	public Hoge() {
+	}
+	
+	public void testGZIPInputStream() throws Exception {
+		String myResult = null;
+		String javaResult = null;
+		{
+			myapp.util.zip.GZIPInputStream in =
+					new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
+			byte[] data = new byte[100];
+			int len;
+			ByteArrayOutputStream buf = new ByteArrayOutputStream();
+			while ((len = in.read(data)) != -1) {
+				buf.write(data, 0, len);
+			}
+			in.close();
+			myResult = buf.toString();
+		}
+		{
+			java.util.zip.GZIPInputStream in =
+					new java.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
+			byte[] data = new byte[100];
+			int len;
+			ByteArrayOutputStream buf = new ByteArrayOutputStream();
+			while ((len = in.read(data)) != -1) {
+				buf.write(data, 0, len);
+			}
+			in.close();
+			javaResult = buf.toString();
+		}
+		System.out.println(myResult.equals(javaResult));
 	}
 	
 	public void testInflater() throws Exception {
