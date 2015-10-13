@@ -82,7 +82,8 @@ public class Deflater {
 		this(DEFAULT_COMPRESSION, false);
 	}
 
-	/** Defｌaterを再利用するためのリセットを行う。
+	/**
+	 * Defｌaterを再利用するためのリセットを行う。
 	 * 
 	 */
 	public void reset() {
@@ -91,37 +92,51 @@ public class Deflater {
 		adler32.reset();
 	}
 
-	/** このDeflaterを金輪際使わないように設定する。このメソッド実行後の動作は保障されない。
+	/**
+	 * このDeflaterを金輪際使わないように設定する。このメソッド実行後の動作は保障されない。
 	 * 
 	 */
 	public void end() {
 
 	}
 
-	
-	/** 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
-	 * @param b 圧縮データを入れるバッファ。
+	/**
+	 * 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
+	 * 
+	 * @param b
+	 *            圧縮データを入れるバッファ。
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b) {
 		return deflate(b, 0, b.length, NO_FLUSH);
 	}
 
-	/** 入力データを圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
-	 * @param b 圧縮データを入れるバッファ。
-	 * @param off バッファにデータを挿入するオフセット。
-	 * @param len バッファにデータを挿入できる最大のサイズ。
+	/**
+	 * 入力データを圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
+	 * 
+	 * @param b
+	 *            圧縮データを入れるバッファ。
+	 * @param off
+	 *            バッファにデータを挿入するオフセット。
+	 * @param len
+	 *            バッファにデータを挿入できる最大のサイズ。
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b, int off, int len) {
 		return deflate(b, off, len, NO_FLUSH);
 	}
 
-	/** 入力データを指定された圧縮フラッシュモードで圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。
-	 * @param b 圧縮データを入れるバッファ。
-	 * @param off バッファにデータを挿入するオフセット。
-	 * @param len バッファにデータを挿入できる最大のサイズ。
-	 * @param flush 圧縮フラッシュモードの指定(サポートしない予定)。
+	/**
+	 * 入力データを指定された圧縮フラッシュモードで圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。
+	 * 
+	 * @param b
+	 *            圧縮データを入れるバッファ。
+	 * @param off
+	 *            バッファにデータを挿入するオフセット。
+	 * @param len
+	 *            バッファにデータを挿入できる最大のサイズ。
+	 * @param flush
+	 *            圧縮フラッシュモードの指定(サポートしない予定)。
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b, int off, int len, int flush) {
@@ -144,69 +159,89 @@ public class Deflater {
 		}
 		return 0;
 	}
-	
-	/** 完結している入力データのすべてを圧縮したデータをすべてを出力し終えたかを返す。
+
+	/**
+	 * 完結している入力データのすべてを圧縮したデータをすべてを出力し終えたかを返す。
+	 * 
 	 * @return すべての入力データを圧縮し終わったならtrue、それ以外はfalse。
 	 */
 	public boolean finished() {
 		return false;
 	}
-	
-	/** 入力データが完結していない場合に未処理入力データが空かどうかを返す。
+
+	/**
+	 * 入力データが完結していない場合に未処理入力データが空かどうかを返す。
+	 * 
 	 * @return　 入力データが空ならtrue、それ以外はfalse。
 	 */
 	public boolean needsInput() {
 		return false;
 	}
-	
-	/** 追加の入力データはもうないこと(入力データは完結したこと)をDeflaterに知らせる。
+
+	/**
+	 * 追加の入力データはもうないこと(入力データは完結したこと)をDeflaterに知らせる。
 	 * 
 	 */
 	public void finish() {
-		
+
 	}
 
-	/** 圧縮解除データのAdler32値を返す。
+	/**
+	 * 圧縮解除データのAdler32値を返す。
+	 * 
 	 * @return 圧縮解除データのAdler32値。
 	 */
 	public int getAdler() {
 		return (int) adler32.getValue();
 	}
 
-	/**　入力データのうち圧縮処理に使用されたバイト数（圧縮されたバイト数ではなく圧縮前のバイト数）。
+	/**
+	 * 　入力データのうち圧縮処理に使用されたバイト数（圧縮されたバイト数ではなく圧縮前のバイト数）。
 	 * int型で桁が小さいのでgetBytesRead()を使うほうがよい。
+	 * 
 	 * @return 圧縮処理に使用されたバイト数。
 	 */
 	public int getTotalIn() {
 		return (int) getBytesRead();
 	}
 
-	/**　入力データのうち圧縮処理に使用されたバイト数（圧縮されたバイト数ではなく圧縮前のバイト数）。
+	/**
+	 * 　入力データのうち圧縮処理に使用されたバイト数（圧縮されたバイト数ではなく圧縮前のバイト数）。
+	 * 
 	 * @return 圧縮処理に使用されたバイト数。
 	 */
 	public long getBytesRead() {
 		return bytesRead;
 	}
 
-	/** 圧縮され出力されたバイト数。つまりdeflateでバッファに渡した総バイト数である。
+	/**
+	 * 圧縮され出力されたバイト数。つまりdeflateでバッファに渡した総バイト数である。
 	 * int型で桁が小さいためgetBytesWritten()を使うほうがよい。
+	 * 
 	 * @return 出力されたバイト数。
 	 */
 	public int getTotalOut() {
 		return (int) getBytesWritten();
 	}
 
-	/** 圧縮され出力されたバイト数。つまりdeflateでバッファに渡した総バイト数である。
+	/**
+	 * 圧縮され出力されたバイト数。つまりdeflateでバッファに渡した総バイト数である。
+	 * 
 	 * @return 出力されたバイト数。
 	 */
 	public long getBytesWritten() {
 		return bytesWritten;
 	}
 
-	/** 圧縮するデータを追加する。
-	 * @param b 追加するデータ。
-	 * @param off 追加するデータのオフセット。
-	 * @param len 追加データの長さ。
+	/**
+	 * 圧縮するデータを追加する。
+	 * 
+	 * @param b
+	 *            追加するデータ。
+	 * @param off
+	 *            追加するデータのオフセット。
+	 * @param len
+	 *            追加データの長さ。
 	 */
 	public void setInput(byte[] b, int off, int len) {
 		if (b == null) {
@@ -220,17 +255,25 @@ public class Deflater {
 		}
 	}
 
-	/** 圧縮するデータを追加する。
-	 * @param b 追加するデータ。
+	/**
+	 * 圧縮するデータを追加する。
+	 * 
+	 * @param b
+	 *            追加するデータ。
 	 */
 	public void setInput(byte[] b) {
 		setInput(b, 0, b.length);
 	}
 
-	/** プリセット辞書を設定する。最初のdeflateを呼び出す前に使用する必要がある。
-	 * @param b プリセット辞書のデータ。
-	 * @param off プリセット辞書のオフセット。
-	 * @param len プリセット辞書の長さ。
+	/**
+	 * プリセット辞書を設定する。最初のdeflateを呼び出す前に使用する必要がある。
+	 * 
+	 * @param b
+	 *            プリセット辞書のデータ。
+	 * @param off
+	 *            プリセット辞書のオフセット。
+	 * @param len
+	 *            プリセット辞書の長さ。
 	 */
 	public void setDictionary(byte[] b, int off, int len) {
 		if (b == null) {
@@ -245,15 +288,21 @@ public class Deflater {
 
 	}
 
-	/** プリセット辞書を設定する。最初のdeflateを呼び出す前に使用する必要がある。
-	 * @param b プリセット辞書のデータ。
+	/**
+	 * プリセット辞書を設定する。最初のdeflateを呼び出す前に使用する必要がある。
+	 * 
+	 * @param b
+	 *            プリセット辞書のデータ。
 	 */
 	public void setDictionary(byte[] b) {
 		setDictionary(b, 0, b.length);
 	}
 
-	/** 圧縮方法を設定する(非サポート)。
-	 * @param strategy 圧縮方法。指定できる値は DEFAULT_STRATEGY、HUFFMAN_ONLY、FILTERED、の３つ。 
+	/**
+	 * 圧縮方法を設定する(非サポート)。
+	 * 
+	 * @param strategy
+	 *            圧縮方法。指定できる値は DEFAULT_STRATEGY、HUFFMAN_ONLY、FILTERED、の３つ。
 	 */
 	public void setStrategy(int strategy) {
 		switch (strategy) {
@@ -266,8 +315,11 @@ public class Deflater {
 		}
 	}
 
-	/** 圧縮レベルを指定する。
-	 * @param level 圧縮レベル(0-9)
+	/**
+	 * 圧縮レベルを指定する。
+	 * 
+	 * @param level
+	 *            圧縮レベル(0-9)
 	 */
 	public void setLevel(int level) {
 		if (level < 0 || level > 9) {
