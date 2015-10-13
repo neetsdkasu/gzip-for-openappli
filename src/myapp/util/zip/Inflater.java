@@ -900,7 +900,7 @@ public class Inflater {
 		if (off < 0 || off >= b.length) {
 			throw new IllegalArgumentException("off");
 		}
-		if (len < 1 || off + len > b.length) {
+		if (len < 0 || off + len > b.length) {
 			throw new IllegalArgumentException("len");
 		}
 		for (int i = 0; i < len; i++) {
