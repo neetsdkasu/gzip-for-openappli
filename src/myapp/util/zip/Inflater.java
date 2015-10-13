@@ -174,6 +174,9 @@ public class Inflater {
 	
 	private int getBit() {
 		int bit = (((int)buffer[bufferIndex]) >> shift) & 0x1;
+		if (shift == 0) {
+			++bytesRead;
+		}
 		++shift;
 		if (shift == 8) {
 			shift = 0;
@@ -207,7 +210,6 @@ public class Inflater {
 			buffer = out.toByteArray();
 			out.reset();
 			bufferIndex = 0;
-			bytesRead += buffer.length;
 			emptyInput = false;
 		}
 		int count = 0;
@@ -303,6 +305,7 @@ public class Inflater {
 
 	private byte getByte() {
 		++bufferIndex;
+		++bytesRead;
 		if (bufferIndex == buffer.length) {
 			emptyInput = true;
 		}
@@ -855,7 +858,7 @@ public class Inflater {
 	}
 	
 	public long getBytesRead() {
-		return bytesRead + out.size();
+		return bytesRead;
 	}
 	
 	public long getBytesWritten() {
