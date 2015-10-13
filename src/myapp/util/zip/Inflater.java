@@ -154,7 +154,8 @@ public class Inflater {
 	private byte zlibFLG;
 	private int checkAdler;
 	private boolean wontDictionary;
-	private boolean readDICTID;
+	private int readDictID;
+	private long dictID;
 	
 	public Inflater() {
 		this(false);
@@ -165,11 +166,7 @@ public class Inflater {
 	 */
 	public Inflater(boolean nowrap) {
 		this.nowrap = nowrap;
-		if (nowrap) {
-			adler = null;
-		} else {
-			adler = new Adler32();
-		}
+		adler = new Adler32();
 		refer = new byte[Inflater.REFER_SIZE];
 		out = new ByteArrayOutputStream();
 		reset();
@@ -193,6 +190,18 @@ public class Inflater {
 	}
 	
 	public int inflate(byte[] b, int off, int len) throws DataFormatException {
+		if (b == null) {
+			throw new NullArgumentException("b");
+		}
+		if (off < 0 || off >= b.length) {
+			throw new NullArgumentException("off");
+		}
+		if (len < 0 || off + len > b.length) {
+			throw new NullArgumentException("len");
+		}
+		if (wontDictionary && (readDictID == 4)) { // 辞書がセットされるまで進めない
+			return 0;
+		}
 		if (emptyInput) {
 			if (out.size() == 0) return 0;
 			buffer = out.toByteArray();
@@ -247,6 +256,8 @@ public class Inflater {
 				}
 				if ((zlibFLG & 0x20) != 0) {
 					wontDictionary = true;
+					readDictID = 0;
+					dictID = 0L;
 					term = 9;
 				} else {
 					term = 0;
@@ -260,12 +271,22 @@ public class Inflater {
 				}
 				break;
 			case 9: // DICTID の読み込み
+				dictID |= getByteValue();
+				readDictID++;
+				if (readDictID == 4) {
+					term = 10;
+					return 0;
+				}
+				break;
+			case 10: // setDictionary呼び出し後の最初のiflate呼び出しまでの待機状態
+				term = 0;
+				break;
 			}
 		}
+		if (count > 0) {
+			adler.update(b, off, count);
+		}
 		if (!nowrap) { // ZLIB の後処理
-			if (count > 0) {
-				adler.update(b, off, count);
-			}
 			if (finish) {
 				if (getAdler() != checkAdler) {
 					errorFinish = true;
@@ -772,12 +793,14 @@ public class Inflater {
 		zlibFLG = 0;
 		checkAdler = 0;
 		wontDictionary = false;
+		readDictID = 0;
+		dictID = 0L;
 		if (nowrap) {
 			term = 0;
 		} else {
 			term = 6;
-			adler.reset();
 		}
+		adler.reset();
 	}
 	
 	public void end() {
@@ -811,12 +834,24 @@ public class Inflater {
 	}
 	
 	public void setInput(byte[] b, int off, int len) {
+		if (b == null) {
+			throw new NullArgumentException("b");
+		}
+		if (off < 0 || off >= b.length) {
+			throw new IllegalArgumentException("off");
+		}
+		if (len < 0 || off + len > b.length) {
+			throw new IllegalArgumentException("len");
+		}
 		out.write(b, off, len);
 	}
 	
 	public int getAdler() {
-		if (adler == null) return 0;
-		return (int)adler.getValue();
+		if ((wontDictionary && (readDictID == 4)) || (term == 10)) {
+			return (int)dictID;
+		} else {
+			return (int)adler.getValue();
+		}
 	}
 	
 	public long getBytesRead() {
@@ -848,7 +883,7 @@ public class Inflater {
 	}
 	
 	public boolean needsDictionary() {
-		return false; // プリセット辞書には対応しない予定です 
+		return wontDictionary & (readDictID == 4); 
 	}
 	
 	public void setDictionary(byte[] b) {
@@ -856,7 +891,7 @@ public class Inflater {
 	}
 	
 	public void setDictionary(byte[] b, int off, int len) {
-		if (wontDictionary == false) {
+		if (wontDictionary & (readDictID == 4) == false) {
 			throw new IllegalArgumentException();
 		}
 		if (b == null) {
@@ -871,5 +906,6 @@ public class Inflater {
 		for (int i = 0; i < len; i++) {
 			putDictionaryByte(b[off + i]);
 		}
+		wontDictionary = false;
 	}
 }
