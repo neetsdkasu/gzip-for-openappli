@@ -297,7 +297,7 @@ public class Inflater {
 			if (nowrap) {
 				finish = true;
 			} else {
-				term = 8; // Adler値の読み込みへ
+				term = 8; // Adler32値の読み込みへ
 				bShift = 0;
 				while (shift > 0) { // バイト境界まで読み飛ばし
 					getBit();
@@ -327,7 +327,7 @@ public class Inflater {
 			bNLen = getByteValue();
 			++bTerm;
 			break;
-		case 4: // HLENの下位バイト読み込み
+		case 4: // HLENの上位バイト読み込み
 			bNLen |= getByteValue() << 8;
 			if ((bLen ^ bNLen) != 0) {
 				errorFinish = true;
