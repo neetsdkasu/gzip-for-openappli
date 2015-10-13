@@ -3,6 +3,8 @@ package myapp.util.zip;
 import java.io.ByteArrayOutputStream;
 import java.lang.ref.WeakReference;
 
+import myapp.util.NullArgumentException;
+
 /**Deflate圧縮解除クラス。
  * @author Leonardone @ NEETSDKASU
  *
@@ -151,6 +153,8 @@ public class Inflater {
 	private byte zlibCMF;
 	private byte zlibFLG;
 	private int checkAdler;
+	private boolean wontDictionary;
+	private boolean readDICTID;
 	
 	public Inflater() {
 		this(false);
@@ -242,10 +246,11 @@ public class Inflater {
 					throw new DataFormatException("wrong format 'FCHECK'"); // フォーマットエラー
 				}
 				if ((zlibFLG & 0x20) != 0) {
-					errorFinish = true;
-					throw new DataFormatException("Not Support 'Preset dictionary'"); // プリセット辞書には未対応
+					wontDictionary = true;
+					term = 9;
+				} else {
+					term = 0;
 				}
-				term = 0;
 				break;
 			case 8: // ZLIB チェックサムの読み込み
 				checkAdler = (checkAdler << 8) | getByteValue();
@@ -254,6 +259,7 @@ public class Inflater {
 					finish = true;
 				}
 				break;
+			case 9: // DICTID の読み込み
 			}
 		}
 		if (!nowrap) { // ZLIB の後処理
@@ -290,6 +296,12 @@ public class Inflater {
 		refer[referIndex] = b[off] = value;
 		referIndex = (referIndex + 1) & Inflater.REFER_MASK;
 	}
+	
+	private void putDictionaryByte(byte value) {
+		refer[referIndex] = value;
+		referIndex = (referIndex + 1) & Inflater.REFER_MASK;
+	}
+
 	
 	private void nextBlock() {
 		term = 0;
@@ -759,6 +771,7 @@ public class Inflater {
 		zlibCMF = 0;
 		zlibFLG = 0;
 		checkAdler = 0;
+		wontDictionary = false;
 		if (nowrap) {
 			term = 0;
 		} else {
@@ -843,6 +856,20 @@ public class Inflater {
 	}
 	
 	public void setDictionary(byte[] b, int off, int len) {
-		// プリセット辞書には対応しない予定です
+		if (wontDictionary == false) {
+			throw new IllegalArgumentException();
+		}
+		if (b == null) {
+			throw new NullArgumentException("b");
+		}
+		if (off < 0 || off >= b.length) {
+			throw new IllegalArgumentException("off");
+		}
+		if (len < 1 || off + len > b.length) {
+			throw new IllegalArgumentException("len");
+		}
+		for (int i = 0; i < len; i++) {
+			putDictionaryByte(b[off + i]);
+		}
 	}
 }
