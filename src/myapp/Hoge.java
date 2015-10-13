@@ -104,7 +104,7 @@ public class Hoge {
 			}
 			myResult = new String(baos.toByteArray());
 		}
-		System.out.println(myResult);
+		System.out.println(javaResult.equals(myResult));
 	}
 	
 	public void testGZIPInputStream() throws Exception {
