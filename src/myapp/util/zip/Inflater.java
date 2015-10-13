@@ -271,7 +271,7 @@ public class Inflater {
 				}
 				break;
 			case 9: // DICTID ÇÃì«Ç›çûÇ›
-				dictID |= getByteValue();
+				dictID |= getByteValue() << (8 * (3 - readDictID));
 				readDictID++;
 				if (readDictID == 4) {
 					term = 10;
