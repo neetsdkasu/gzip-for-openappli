@@ -6,22 +6,25 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-import myapp.util.zip.InflaterInputStream;
-
-
 public class Hoge {
 
 	public static void main(String[] args) throws java.lang.Exception  {
 		Hoge hoge = new Hoge();
 		
+		hoge.testPresetDicitionary();
+		
 //		hoge.testCRC32();
 //		hoge.testAdler32();
 		
-		hoge.testGZIPInputStream();
+//		hoge.testGZIPInputStream();
 //		hoge.testInflater();
 	}
 	
 	public Hoge() {
+	}
+	
+	void testPresetDicitionary() throws Exception {
+		
 	}
 	
 	public void testGZIPInputStream() throws Exception {
@@ -116,7 +119,8 @@ public class Hoge {
 	     
 	     // InflaterInputStreamのテスト
 	     ByteArrayInputStream bais = new ByteArrayInputStream(output, 0, compressedDataLength);
-	     InflaterInputStream in = new InflaterInputStream(bais, new myapp.util.zip.Inflater(nowrap));
+	     myapp.util.zip.InflaterInputStream in = 
+	    		 new myapp.util.zip.InflaterInputStream(bais, new myapp.util.zip.Inflater(nowrap));
 //	     // read() のテスト
 //	     int k;
 //	     while ((k = in.read()) >= 0) {
