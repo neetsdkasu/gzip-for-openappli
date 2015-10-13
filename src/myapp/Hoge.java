@@ -24,7 +24,87 @@ public class Hoge {
 	}
 	
 	void testPresetDicitionary() throws Exception {
-		
+		byte[] dictionary = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcde".getBytes();
+		int dic_adler;
+		{
+			myapp.util.zip.Adler32 adler32 = new myapp.util.zip.Adler32();
+			adler32.update(dictionary);
+			dic_adler = (int)adler32.getValue();
+		}
+		String dataString = "JJJJJKLMNOPJKLMNOPJKLzzzzzz45678";
+		byte[] data = dataString.getBytes(); 
+		byte[] compressed;
+		{
+			java.util.zip.Deflater df = new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, false);
+			df.setDictionary(dictionary);
+			df.setInput(data);
+			df.finish();
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte[] buf = new byte[100];
+			while (!df.finished()){
+				int buflen = df.deflate(buf);
+				baos.write(buf, 0, buflen);
+			}
+			baos.flush();
+			compressed = baos.toByteArray();
+		}
+		if (compressed == null || compressed.length == 0) {
+			System.out.println("aree?");
+			return;
+		}
+		String myResult = null;
+		String javaResult = null;
+		{
+			java.util.zip.Inflater inf = new java.util.zip.Inflater(false);
+			inf.setInput(compressed);
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte[] buf = new byte[100];
+			while (!inf.finished()){
+				int buflen=inf.inflate(buf);
+				if (buflen == 0){
+					if (inf.needsDictionary()){
+						if (inf.getAdler() == dic_adler) {
+							inf.setDictionary(dictionary);
+						} else {
+							System.out.println("damepo");
+							return;
+						}
+					} else {
+						System.out.println("damepo!");		
+						return;
+					}
+				} else{
+					baos.write(buf, 0, buflen);
+				}
+			}
+			javaResult = new String(baos.toByteArray());
+		}
+		{
+			myapp.util.zip.Inflater inf = new myapp.util.zip.Inflater(false);
+			inf.setInput(compressed);
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte[] buf = new byte[100];
+			while (!inf.finished()){
+				int buflen=inf.inflate(buf);
+				if (buflen == 0){
+					if (inf.needsDictionary()){
+						if (inf.getAdler() == dic_adler) {
+							inf.setDictionary(dictionary);
+						} else {
+							System.out.println("damepo");
+							return;
+						}
+					} else {
+						System.out.println("damepo!");		
+						return;
+					}
+				} else{
+					baos.write(buf, 0, buflen);
+				}
+			}
+			myResult = new String(baos.toByteArray());
+		}
+		System.out.println(myResult);
 	}
 	
 	public void testGZIPInputStream() throws Exception {
