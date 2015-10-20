@@ -32,16 +32,6 @@ public class Deflater {
 	/** ハフマン符号化だけの圧縮方法。つまり非圧縮ブロックを作らないってことかな。 */
 	public static final int HUFFMAN_ONLY = 2;
 
-	/** 最高の圧縮を実現するための圧縮フラッシュモードらしい(よくわからない)。たぶん最大の32KBまで参照できるかチェックしながら圧縮するのかな。 */
-	public static final int NO_FLUSH = 0;
-	/** 保留中のデータをすべてフラッシュする圧縮フラッシュモードらしい(よくわからない)。圧縮率が悪くなるらしい。 */
-	public static final int SYNC_FLUSH = 2;
-	/**
-	 * 保留中のデータをすべてフラッシュし、Deflaterをリセットするための圧縮フラッシュモードらしい(よくわからない)。
-	 * ブロックサイズを小さくして圧縮するのかな。 圧縮率が超悪いらしい。
-	 */
-	public static final int FULL_FLUSH = 3;
-
 	private Adler32 adler32;
 	private long bytesRead;
 	private long bytesWritten;
@@ -101,18 +91,18 @@ public class Deflater {
 	}
 
 	/**
-	 * 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
+	 * 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。
 	 * 
 	 * @param b
 	 *            圧縮データを入れるバッファ。
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b) {
-		return deflate(b, 0, b.length, NO_FLUSH);
+		return deflate(b, 0, b.length);
 	}
 
 	/**
-	 * 入力データを圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。圧縮フラッシュモードはNO_FLUSHが使用される。
+	 * 入力データを圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。
 	 * 
 	 * @param b
 	 *            圧縮データを入れるバッファ。
@@ -123,40 +113,6 @@ public class Deflater {
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b, int off, int len) {
-		return deflate(b, off, len, NO_FLUSH);
-	}
-
-	/**
-	 * 入力データを指定された圧縮フラッシュモードで圧縮し、指定されたバッファの指定位置に圧縮したデータをコピーする。
-	 * 
-	 * @param b
-	 *            圧縮データを入れるバッファ。
-	 * @param off
-	 *            バッファにデータを挿入するオフセット。
-	 * @param len
-	 *            バッファにデータを挿入できる最大のサイズ。
-	 * @param flush
-	 *            圧縮フラッシュモードの指定(サポートしない予定)。
-	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
-	 */
-	public int deflate(byte[] b, int off, int len, int flush) {
-		if (b == null) {
-			throw new NullArgumentException("b");
-		}
-		if (off < 0 || off >= b.length) {
-			throw new IllegalArgumentException("off:" + off);
-		}
-		if (len < 0 || off + len > b.length) {
-			throw new IllegalArgumentException("len:" + len);
-		}
-		switch (flush) {
-		case NO_FLUSH:
-		case SYNC_FLUSH:
-		case FULL_FLUSH:
-			break;
-		default:
-			throw new IllegalArgumentException("flush:" + flush);
-		}
 		return 0;
 	}
 
