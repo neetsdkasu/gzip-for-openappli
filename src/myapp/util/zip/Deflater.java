@@ -1,5 +1,7 @@
 package myapp.util.zip;
 
+import java.util.Hashtable;
+
 import myapp.util.NullArgumentException;
 
 /**
@@ -38,7 +40,15 @@ public class Deflater {
 
 	private int level;
 	private final boolean nowrap;
-
+	
+	private boolean moreInputs;
+	private boolean useDictionary = false;
+	
+	private byte[] referBytes = new byte[32678];
+	private int referIndex;
+	private int referLength;
+	private Hashtable<Object, Object> referMap = new Hashtable<>(); // オープンアプリに移すときジェネリクスの削除必須
+	
 	/**
 	 * 　圧縮レベルとフォーマットを指定するコンストラクタ。
 	 * 
@@ -79,7 +89,14 @@ public class Deflater {
 	public void reset() {
 		bytesRead = 0L;
 		bytesWritten = 0L;
+		moreInputs = true;
+		referIndex = 0;
+		referLength = 0;
+		referMap.clear();
 		adler32.reset();
+		if (nowrap) {
+			useDictionary = false;
+		}
 	}
 
 	/**
@@ -87,11 +104,11 @@ public class Deflater {
 	 * 
 	 */
 	public void end() {
-
+		moreInputs = false;
 	}
 
 	/**
-	 * 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。
+	 * 入力データを圧縮し、指定されたバッファに圧縮したデータをコピーする。単に deflate(b, 0,, b.length) を呼び出すだけ。
 	 * 
 	 * @param b
 	 *            圧縮データを入れるバッファ。
@@ -113,6 +130,12 @@ public class Deflater {
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b, int off, int len) {
+		if (bytesWritten == 0 && nowrap == false) {
+			// ZLIB フラグ書き込み
+		}
+		if (moreInputs) { // 入力データ不足
+			return 0;
+		}
 		return 0;
 	}
 
@@ -131,7 +154,7 @@ public class Deflater {
 	 * @return　 入力データが空ならtrue、それ以外はfalse。
 	 */
 	public boolean needsInput() {
-		return false;
+		return moreInputs;
 	}
 
 	/**
