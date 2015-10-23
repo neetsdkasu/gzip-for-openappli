@@ -277,7 +277,7 @@ public class Inflater {
 				}
 				break;
 			case 9: // DICTID の読み込み
-				dictID |= getByteValue() << (8 * (3 - readDictID));
+				dictID |= 0xFFFFFFFFL & (long)(getByteValue() << (8 * (3 - readDictID)));
 				readDictID++;
 				if (readDictID == 4) {
 					term = 10;
@@ -901,8 +901,14 @@ public class Inflater {
 	}
 	
 	public void setDictionary(byte[] b, int off, int len) {
-		if (wontDictionary & (readDictID == 4) == false) {
-			throw new IllegalArgumentException();
+		if (nowrap) {
+			if (finished()) { // 解除終わったら辞書いらないっしょ
+				throw new IllegalArgumentException();
+			}
+		}else {
+			if (wontDictionary & (readDictID == 4) == false) {
+				throw new IllegalArgumentException(); // ZLIBは辞書要求時以外の辞書入力はエラー
+			}
 		}
 		if (b == null) {
 			throw new NullArgumentException("b");
@@ -912,6 +918,13 @@ public class Inflater {
 		}
 		if (len < 0 || off + len > b.length) {
 			throw new IllegalArgumentException("len");
+		}
+		if (nowrap == false) {
+			Adler32 chk = new Adler32(); // ZLIBならDICTIDと一致しなきゃマズイっしょ
+			chk.update(b, off, len);
+			if (dictID != chk.getValue()) {
+				throw new IllegalArgumentException();
+			}
 		}
 		for (int i = 0; i < len; i++) {
 			putDictionaryByte(b[off + i]);
