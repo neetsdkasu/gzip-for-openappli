@@ -94,7 +94,7 @@ public class Deflater {
 		referLength = 0;
 		referMap.clear();
 		adler32.reset();
-		if (nowrap) {
+		if (nowrap == false) {
 			useDictionary = false;
 		}
 	}
