@@ -166,7 +166,11 @@ public class Inflater {
 	 */
 	public Inflater(boolean nowrap) {
 		this.nowrap = nowrap;
-		adler = new Adler32();
+		if (nowrap) {
+			adler = null; // gzip‚Å‚ÍŒvŽZ‚µ‚È‚¢
+		} else {
+			adler = new Adler32(); // zlib
+		}
 		refer = new byte[Inflater.REFER_SIZE];
 		out = new ByteArrayOutputStream();
 		reset();
@@ -285,10 +289,10 @@ public class Inflater {
 				break;
 			}
 		}
-		if (count > 0) {
-			adler.update(b, off, count);
-		}
 		if (!nowrap) { // ZLIB ‚ÌŒãˆ—
+			if (count > 0) {
+				adler.update(b, off, count); // Adler32‚ðŒvŽZ‚·‚é‚Ì‚ÍZLIB‚Ì‚Ý
+			}
 			if (finish) {
 				if (getAdler() != checkAdler) {
 					errorFinish = true;
@@ -799,11 +803,11 @@ public class Inflater {
 		readDictID = 0;
 		dictID = 0L;
 		if (nowrap) {
-			term = 0;
+			term = 0; // GZIP
 		} else {
-			term = 6;
+			term = 6; // ZLIB
+			adler.reset();
 		}
-		adler.reset();
 	}
 	
 	public void end() {
@@ -850,6 +854,9 @@ public class Inflater {
 	}
 	
 	public int getAdler() {
+		if (nowrap) {
+			return 1; // GZIP
+		}
 		if ((wontDictionary && (readDictID == 4)) || (term == 10)) {
 			return (int)dictID;
 		} else {
