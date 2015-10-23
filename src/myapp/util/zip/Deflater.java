@@ -17,7 +17,7 @@ public class Deflater {
 
 	/** デフォルトの圧縮レベル。コンストラクタでしか使えない。 */
 	public static final int DEFAULT_COMPRESSION = -1;
-	/** 一切圧縮しない圧縮レベル。すべてのブロックを非圧縮ブロックにするってことかな。 */
+	/** 一切圧縮しない圧縮レベル。ハフマンブロックでないなら非圧縮ブロックにするってことかな。ハフマンブロックならリテラル値オンリーということかな。 */
 	public static final int NO_COMPRESSION = 0;
 	/** 速度を優先する圧縮レベル。 */
 	public static final int BEST_SPEED = 1;
@@ -27,7 +27,7 @@ public class Deflater {
 	/** デフォルトの圧縮方法。 */
 	public static final int DEFAULT_STRATEGY = 0;
 	/**
-	 * 小さい値がランダムに分布してるデータに向いてる圧縮方法らしい(サポート予定なし)。 ハフマン符号表を工夫して短いリテラル符号に変換する感じ？
+	 * 小さい値がランダムに分布してるデータに向いてる圧縮方法らしい(サポート予定なし)。 ハフマン符号表を工夫して短いリテラル符号に変換する感じ？。
 	 * 距離・長さでの前データ参照による圧縮をなるべく避けるらしい。
 	 */
 	public static final int FILTERED = 1;
@@ -41,13 +41,16 @@ public class Deflater {
 	private int level;
 	private final boolean nowrap;
 	
+	private int term;
 	private boolean moreInputs;
 	private boolean useDictionary = false;
+	private boolean finishedWrite;
 	
-	private byte[] referBytes = new byte[32678];
+	private byte[] referBytes = new byte[0x8000];
 	private int referIndex;
 	private int referLength;
 	private Hashtable<Object, Object> referMap = new Hashtable<>(); // オープンアプリに移すときジェネリクスの削除必須
+	
 	
 	/**
 	 * 　圧縮レベルとフォーマットを指定するコンストラクタ。
@@ -63,7 +66,11 @@ public class Deflater {
 		}
 		this.level = level;
 		this.nowrap = nowrap;
-		adler32 = new Adler32();
+		if (nowrap) {
+			adler32 = null;
+		} else {
+			adler32 = new Adler32();
+		}
 		reset();
 	}
 
@@ -89,13 +96,17 @@ public class Deflater {
 	public void reset() {
 		bytesRead = 0L;
 		bytesWritten = 0L;
+		finishedWrite = false;
 		moreInputs = true;
 		referIndex = 0;
 		referLength = 0;
 		referMap.clear();
-		adler32.reset();
-		if (nowrap == false) {
+		if (nowrap) {
+			term = 11;
+		} else {
+			term = 0;
 			useDictionary = false;
+			adler32.reset();
 		}
 	}
 
@@ -105,6 +116,8 @@ public class Deflater {
 	 */
 	public void end() {
 		moreInputs = false;
+		finishedWrite = true;
+		adler32 = null;
 	}
 
 	/**
@@ -130,13 +143,85 @@ public class Deflater {
 	 * @return 圧縮データが実際にコピーされたバイトサイズ、戻り値が 0 なら入力データが不足している可能性がある。
 	 */
 	public int deflate(byte[] b, int off, int len) {
-		if (bytesWritten == 0 && nowrap == false) {
-			// ZLIB フラグ書き込み
+		if (b == null) {
+			throw new NullArgumentException("b");
 		}
-		if (moreInputs) { // 入力データ不足
-			return 0;
+		if (off < 0 || off >= b.length) {
+			throw new IllegalArgumentException("off");
 		}
-		return 0;
+		if (len < 0 || off + len > b.length) {
+			throw new IllegalArgumentException("len");
+		}
+		int nowlen = 0;
+		int pos = off;
+		while (nowlen < len && !finished()) {
+			switch (term) {
+			case 0: // ZLIB CMF
+				b[pos++] = 78;
+				nowlen++;
+				term++;
+				break;
+			case 1: // ZLIB FLG
+				int FLG = (78 << 8) | (2 << 5);
+				if (useDictionary) {
+					FLG |= 1 << 4;
+					term -= 9;
+				}
+				FLG += (31 - (FLG % 31)) % 31;
+				b[pos++] = (byte)(FLG & 0xFF);
+				nowlen++;
+				term += 10;
+				break;
+			case 2: // ZLIB DICTID 1
+				b[pos++] = (byte)((adler32.getValue() >> 24) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 3: // ZLIB DICTID 2
+				b[pos++] = (byte)((adler32.getValue() >> 16) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 4: // ZLIB DICTID 3
+				b[pos++] = (byte)((adler32.getValue() >> 8) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 5: // ZLIB DICTID 4
+				b[pos++] = (byte)(adler32.getValue() & 0xFFL);
+				nowlen++;
+				term = 10;
+				break;
+			case 6: // ZLIB ADLER32 1 (After Compress Data)
+				b[pos++] = (byte)((adler32.getValue() >> 24) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 7: // ZLIB ADLER32 2 (After Compress Data)
+				b[pos++] = (byte)((adler32.getValue() >> 16) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 8: // ZLIB ADLER32 3 (After Compress Data)
+				b[pos++] = (byte)((adler32.getValue() >> 8) & 0xFFL);
+				nowlen++;
+				term++;
+				break;
+			case 9: // ZLIB ADLER32 4 (After Compress Data)
+				b[pos++] = (byte)(adler32.getValue()  & 0xFFL);
+				nowlen++;
+				finishedWrite = true;
+				term = -1; // finished
+				break;
+			case 10: // reset Adler32 (used Preset Dictionary)
+				adler32.reset();
+				term++;
+			case 11: // Compress Data
+				break;
+			}
+		}
+		bytesWritten += (long)nowlen;
+		return nowlen;
 	}
 
 	/**
@@ -145,7 +230,7 @@ public class Deflater {
 	 * @return すべての入力データを圧縮し終わったならtrue、それ以外はfalse。
 	 */
 	public boolean finished() {
-		return false;
+		return finishedWrite;
 	}
 
 	/**
@@ -171,7 +256,11 @@ public class Deflater {
 	 * @return 圧縮解除データのAdler32値。
 	 */
 	public int getAdler() {
-		return (int) adler32.getValue();
+		if (nowrap) {
+			return 1;
+		} else {
+			return (int) adler32.getValue();
+		}
 	}
 
 	/**
@@ -255,6 +344,9 @@ public class Deflater {
 	 *            プリセット辞書の長さ。
 	 */
 	public void setDictionary(byte[] b, int off, int len) {
+		if (bytesWritten > 0L) {
+			throw new IllegalArgumentException(); // 最初のdeflateが呼び出されるまでOKな感じ？
+		}
 		if (b == null) {
 			throw new NullArgumentException("b");
 		}
@@ -264,7 +356,18 @@ public class Deflater {
 		if (len < 0 || off + len > b.length) {
 			throw new IllegalArgumentException("len");
 		}
-
+		if (nowrap == false) {
+			adler32.update(b, off, len); // ZLIBのときはAdler32値の更新
+			useDictionary = true;
+		}
+		if (referLength < 0x8000) {
+			referLength = Math.min(0x8000, referLength + len);
+		}
+		len += off;
+		for (int i = off; i < len; i++) {
+			referBytes[referIndex] = b[i];
+			referIndex = (referIndex + 1) & 0x7FFF;
+		}
 	}
 
 	/**
