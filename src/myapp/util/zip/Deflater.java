@@ -1,6 +1,7 @@
 package myapp.util.zip;
 
 import java.util.Hashtable;
+import java.util.Vector;
 
 import myapp.util.NullArgumentException;
 
@@ -14,10 +15,8 @@ public class Deflater {
 	
 
 	static final int WINDOW_SIZE = 0x8000; // 後方参照の最大サイズ(2のべき乗)
-	static final int WINDOW_MASK = WINDOW_SIZE - 1; // 参照配列を循環して使うためのModulo的な値
 	
 	static final int BLOCK_SIZE = 0x1000; // 入力データの圧縮処理単位(ブロック)のサイズ
-	static final int BLOCK_MASK = BLOCK_SIZE - 1; // 
 
 	/** delfateアルゴリズムを使う圧縮メソッド。 */
 	public static final int DEFLATED = 8;
@@ -54,10 +53,10 @@ public class Deflater {
 	private boolean finishedWrite; // 全入力データの圧縮処理が終わったとき true
 	
 	// 参照データ (処理中の入力データ以前の参照可能データ、辞書データもここに投入される)
-	private ReferenceTable reference = new ReferenceTable(WINDOW_MASK);
+	private ReferenceTable reference = new ReferenceTable(WINDOW_SIZE);
 	
 	// 一時参照データ (処理中の入力データのブロックの情報を保持)
-	private ReferenceTable blockReference = new ReferenceTable(BLOCK_MASK);
+	private ReferenceTable blockReference = new ReferenceTable(BLOCK_SIZE);
 	
 	/**
 	 * 　圧縮レベルとフォーマットを指定するコンストラクタ。
@@ -124,6 +123,8 @@ public class Deflater {
 		moreInputs = false;
 		finishedWrite = true;
 		adler32 = null;
+		reference = null;
+		blockReference = null;
 	}
 
 	/**
@@ -368,7 +369,8 @@ public class Deflater {
 			adler32.update(b, off, len); // ZLIBのときはAdler32値の更新
 			useDictionary = true;
 		}
-		// TODO setDictionary() 辞書データの更新		
+		// TODO setDictionary() 辞書データの更新
+		reference.add(b, off, len);
 	}
 
 	/**
@@ -412,20 +414,202 @@ public class Deflater {
 		this.level = level; // TODO setLevel() ここで更新すべきでない
 	}
 
-	private class ReferenceTable {
-		public final int size;
-		public byte[] bytes;
-		public int index;
-		public int length;
-		public Hashtable<Object, Object> table = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
+	/** 参照テーブルを扱うクラス。
+	 * 
+	 * @author Leonardone @ NEETSDKASU
+	 *
+	 */
+	private static class ReferenceTable {
+		private final int bufSize;
+		private final int mask; // 配列循環用のModulo的なマスク
+		private final byte[] buf;
+		private int bufIndex = 0; // 次にデータを書き込む位置。bufLength>=bufSizeのときはデータの先頭位置でもある。
+
+		private int bufLength = 0; // テーブルにキーを追加するか削除するかを決めるための値
+		private final int stopLen; // テーブルからの削除処理の有無を決めるlength境界値
+		
+		// 参照テーブル、3bytes分の値をキーに3bytesの先頭データのindexを値の配列(Vector)として保持
+		public final Hashtable<Object, Object> table = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
+		
+		/** コンストラクタ。
+		 * 
+		 * @param size
+		 */
 		public ReferenceTable(int size) {
-			this.size = size;
-			bytes = new byte[size];
+			bufSize = size;
+			mask = bufSize - 1;
+			stopLen = bufSize + 2;
+			buf = new byte[bufSize];
 		}
+		
+		/** 再利用のためのリセット。
+		 * 
+		 */
 		public void reset() {
-			index = 0;
-			length = 0;
+			bufIndex = 0;
+			bufLength = 0;
 			table.clear();
+		}
+		
+		/** テーブルのキー生成。
+		 * 3bytes分のバイトデータからキーを生成する。
+		 * @param head    キーにする3bytes分データの先頭バイト(1byte目)。
+		 * @param center  キーにする3bytes分データの中央バイト(2byte目)。
+		 * @param tail    キーにする3bytes分データの末尾バイト(3byte目)。
+		 * @return        生成されたキー。
+		 */
+		public Integer makeKey(byte head, byte center, byte tail) {
+			return Integer.valueOf(
+					(0xFF & (int)tail)
+					| ((0xFF & (int)center) << 8)
+					| ((0xFF & (int)head) << 16)
+					);
+		}
+		
+		/** テーブルから古いindexを削除する (add()から呼び出す)。
+		 * 
+		 */
+		private void deleteIndex() {
+			int centerIndex = (bufIndex + 1) & mask; // index は キーの 先頭バイト
+			int tailIndex = (centerIndex + 1) & mask;
+			Integer key = makeKey(buf[bufIndex], buf[centerIndex], buf[tailIndex]);
+			Vector<Object> indexes = (Vector<Object>)table.get(key); // XXX オープンアプリ時 ジェネリクスの削除
+			indexes.remove(Integer.valueOf(bufIndex));
+			// 削除必要かは微妙なところ (同一キーの発生頻度がそれなりにあるならちょとｔ無駄かも
+			// if (indexes.isEmpty()) table.remove(key);  
+		}
+		
+		/** テーブルへのキーとインデックスの挿入 (add()から呼び出す)。
+		 * 
+		 */
+		private void putIndex() {
+			int centerIndex = (bufIndex + mask) & mask; // indexはキーの末尾バイト
+			int headIndex = (centerIndex + mask) & mask;
+			Integer key = makeKey(buf[headIndex], buf[centerIndex], buf[bufIndex]);
+			Vector<Object> indexes = (Vector<Object>)table.get(key); // XXX オープンアプリ時 ジェネリクスの削除
+			if (indexes == null) {
+				indexes = new Vector<>(); // XXX ジェネリクス削除
+				table.put(key, indexes);
+			}
+			indexes.addElement(Integer.valueOf(headIndex));
+		}
+		
+		/** 1byte分データを追加し、テーブルキーを返す。
+		 * 
+		 * @param b 追加するバイト。
+		 */
+		public void add(byte b) {
+			if (bufLength == stopLen) { // データの更新とテーブルの更新
+				// テーブルから古いキーの削除
+				deleteIndex();
+				buf[bufIndex] = b;
+				putIndex();
+			} else if (bufLength > 2) { // データの追加とテーブルへの追加
+				buf[bufIndex] = b;
+				bufLength++;
+				putIndex();				
+			} else { // length < 2 - データの追加のみ
+				buf[bufIndex] = b;
+				bufLength++;
+			}
+			bufIndex = (bufIndex + 1) & mask; // 配列の循環マスク
+		}
+		
+		/** まとめてデータを追加 
+		 * 
+		 * @param b
+		 * @param off
+		 * @param len
+		 */
+		public void add(byte[] b, int off, int len) {
+			len += off;
+			for (;off < len; off++) {
+				add(b[off]);
+			}
+		}
+		
+		/** 参照テーブル内でデータに最長一致する距離と長さを取得する。
+		 * 距離はdataのoffを0byte目としたときの距離。長さは参照する長さ。
+		 * このReferenceTableはdataのoff以前までのデータを保持することが前提となる。
+		 * また、このReferenceTableはbufLength<=bufSizeが前提となる。
+		 * @param data         対象の未処理データ。
+		 * @param off          データの先頭位置。
+		 * @param len          データの長さ。
+		 * @param maxMatches   最長一致の最大サイズ。
+		 * @param beforeBuffer このReferenceTableより前にくるデータ列を保持した参照テーブル。 
+		 * @return             最長一致した距離と長さを添え字0,1に持つ配列で返す。見つからなければnull。
+		 */
+		public int[] findIndex(byte[] data, int off, int len, int maxMatches ,ReferenceTable beforeBuffer) {
+			if (len < 3) {
+				return null;
+			}
+			Integer key = makeKey(data[off], data[off + 1], data[off + 2]);
+			Vector<Object> indexes; // XXX ジェネリクス
+			int[] result = null;
+			int stp = off + Math.min(len, maxMatches); // データの検索範囲
+			if (beforeBuffer != null && (indexes = (Vector<Object>)beforeBuffer.table.get(key)) != null) { // XXX ジェネリクス
+				if (indexes.size() > 0) {
+					result = new int[3];
+				}
+				byte[] bBuf = beforeBuffer.buf;
+				int bMask = beforeBuffer.mask;
+				int bEndIndex = (beforeBuffer.bufLength >= beforeBuffer.bufSize) ? beforeBuffer.bufIndex : beforeBuffer.bufLength;
+				for (int i = 0; i < indexes.size(); i++) {
+					int bRefIndex = ((Integer)indexes.get(i)).intValue(); // beforeTableの参照開始初期位置
+					int ib = (bRefIndex + 3) & bMask; // beforeTableの現在のデータ参照位置
+					int ir = 0; // このReferenceTableの現在のデータ参照位置 
+					int matchesLen = 3;
+					int sel = 0;
+					if (ib == bEndIndex) { sel = 1; ib = 0; } // 参照3bytesが最後のデータだった場合
+					for (int j = off + 3; j < stp; j++) {
+						if (sel == 0) {
+							// beforeData内での位置
+							if (data[j] != bBuf[ib]) break;
+							matchesLen++;
+							ib = (ib + 1) & bMask;
+							if (ib == bEndIndex) {
+								ib = bRefIndex;
+								if (bufLength > 0) sel = 1; // このReferenceTableにデータがある場合切り替え
+							}
+						} else {
+							// このReferenceTableでの位置
+							if (data[j] != buf[ir]) break;
+							matchesLen++;
+							ir++;
+							if (ir == bufLength) {
+								ir = 0;
+								sel = 0; // 参照が繰り返しの取得になる
+							}
+						}
+					}
+					if (matchesLen > result[1]) {
+						result[0] = (bEndIndex - bRefIndex) + bufIndex;
+						result[1] = matchesLen;
+					}
+				}
+			}
+			indexes = (Vector<Object>)table.get(key); // XXX オープンアプリ時 ジェネリクスの削除
+			if (indexes == null || indexes.isEmpty()) {
+				return result; // このReferenceTableに一致箇所がない
+			}
+			if (result == null) result = new int[3];
+			for (int i = 0; i < indexes.size(); i++) {
+				int refIndex = ((Integer)indexes.get(i)).intValue(); // 参照開始位置
+				int ir = refIndex + 3; // 現在の参照位置
+				int matchLen = 3;
+				if (ir == bufLength) ir = 0; // このReferenceTableが3bytesしかない
+				for (int j = off + 3; j < stp; j++) {
+					if (data[j] != buf[ir]) break;
+					matchLen++;
+					ir++;
+					if (ir == bufLength) ir = refIndex; // 繰り返し参照
+				}
+				if (matchLen > result[1]) {
+					result[0] = bufLength - refIndex;
+					result[1] = matchLen;
+				}
+			}
+			return result;
 		}
 	}
 	
