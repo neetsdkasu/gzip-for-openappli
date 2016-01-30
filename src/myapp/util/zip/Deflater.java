@@ -45,7 +45,7 @@ public class Deflater {
 	private long bytesWritten;
 
 	private int level;
-	private final boolean nowrap; // true なら ZIP、 false　なら ZLIB
+	private final boolean nowrap; // true なら GZIP、 false　なら ZLIB
 	
 	private int term; // ヘッダ書き込みのためのターム
 	private boolean moreInputs; // 入力が足りない時　true
