@@ -11,6 +11,12 @@ import myapp.util.NullArgumentException;
  * 
  */
 public class Deflater {
+	
+	static final int WINDOW_SIZE = 0x8000; // 後方参照の最大サイズ(2のべき乗)
+	static final int WINDOW_MASK = WINDOW_SIZE - 1; // 参照配列を循環して使うためのModulo的な値
+	
+	static final int BLOCK_SIZE = 0x1000; // 入力データの圧縮処理単位(ブロック)のサイズ
+	static final int BLOCK_MASK = BLOCK_SIZE - 1; // 
 
 	/** delfateアルゴリズムを使う圧縮メソッド。 */
 	public static final int DEFLATED = 8;
@@ -34,23 +40,29 @@ public class Deflater {
 	/** ハフマン符号化だけの圧縮方法。つまり非圧縮ブロックを作らないってことかな。 */
 	public static final int HUFFMAN_ONLY = 2;
 
-	private Adler32 adler32;
+	private Adler32 adler32; // ZLIBでの辞書データを使うときのみ使う、辞書データのadler32値
 	private long bytesRead;
 	private long bytesWritten;
 
 	private int level;
-	private final boolean nowrap;
+	private final boolean nowrap; // true なら ZIP、 false　なら ZLIB
 	
-	private int term;
-	private boolean moreInputs;
-	private boolean useDictionary = false;
-	private boolean finishedWrite;
+	private int term; // ヘッダ書き込みのためのターム
+	private boolean moreInputs; // 入力が足りない時　true
+	private boolean useDictionary = false; // ZLIBで辞書を使うとき true
+	private boolean finishedWrite; // 全入力データの圧縮処理が終わったとき true
 	
-	private byte[] referBytes = new byte[0x8000];
+	// 参照データ (処理中の入力データ以前の参照可能データ、辞書データもここに投入される)
+	private byte[] referBytes = new byte[WINDOW_SIZE];
 	private int referIndex;
 	private int referLength;
-	private Hashtable<Object, Object> referMap = new Hashtable<>(); // オープンアプリに移すときジェネリクスの削除必須
+	private Hashtable<Object, Object> referMap = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
 	
+	// 一時参照データ (処理中の入力データのブロックの情報を保持)
+	private byte[] blockReferBytes = new byte[BLOCK_SIZE];
+	private int blockReferIndex;
+	private int blockReferLength;
+	private Hashtable<Object, Object> blockReferMap = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
 	
 	/**
 	 * 　圧縮レベルとフォーマットを指定するコンストラクタ。
@@ -101,6 +113,9 @@ public class Deflater {
 		referIndex = 0;
 		referLength = 0;
 		referMap.clear();
+		blockReferIndex=0;
+		blockReferLength=0;
+		blockReferMap.clear();
 		if (nowrap) {
 			term = 11;
 		} else {
@@ -217,6 +232,7 @@ public class Deflater {
 				adler32.reset();
 				term++;
 			case 11: // Compress Data
+				// TODO deflate() 実装 データ圧縮処理の呼び出し
 				break;
 			}
 		}
@@ -247,7 +263,7 @@ public class Deflater {
 	 * 
 	 */
 	public void finish() {
-
+		// TODO finish() 入力終了 未実装
 	}
 
 	/**
@@ -321,6 +337,7 @@ public class Deflater {
 		if (len < 0 || off + len > b.length) {
 			throw new IllegalArgumentException("len");
 		}
+		// TODO setInput() データの入力 未実装
 	}
 
 	/**
@@ -360,13 +377,14 @@ public class Deflater {
 			adler32.update(b, off, len); // ZLIBのときはAdler32値の更新
 			useDictionary = true;
 		}
+		// 以下はすべて入力データ圧縮と同じ処理呼び出しで更新すべき		
 		if (referLength < 0x8000) {
-			referLength = Math.min(0x8000, referLength + len);
+			referLength = Math.min(0x8000, referLength + len); // TODO setDictionary() この処理もまずい
 		}
 		len += off;
 		for (int i = off; i < len; i++) {
 			referBytes[referIndex] = b[i];
-			referIndex = (referIndex + 1) & 0x7FFF;
+			referIndex = (referIndex + 1) & 0x7FFF; // TODO setDictionary() ここの処理は正しくない
 		}
 	}
 
@@ -391,6 +409,7 @@ public class Deflater {
 		case DEFAULT_STRATEGY:
 		case HUFFMAN_ONLY:
 		case FILTERED:
+			// TODO setStrategy()　未実装
 			break;
 		default:
 			throw new IllegalArgumentException("strategy");
@@ -407,6 +426,6 @@ public class Deflater {
 		if (level < 0 || level > 9) {
 			throw new IllegalArgumentException("level");
 		}
-		this.level = level;
+		this.level = level; // TODO setLevel() ここで更新すべきでない
 	}
 }
