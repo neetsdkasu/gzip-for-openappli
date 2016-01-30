@@ -12,6 +12,7 @@ import myapp.util.NullArgumentException;
  */
 public class Deflater {
 	
+
 	static final int WINDOW_SIZE = 0x8000; // 後方参照の最大サイズ(2のべき乗)
 	static final int WINDOW_MASK = WINDOW_SIZE - 1; // 参照配列を循環して使うためのModulo的な値
 	
@@ -53,16 +54,10 @@ public class Deflater {
 	private boolean finishedWrite; // 全入力データの圧縮処理が終わったとき true
 	
 	// 参照データ (処理中の入力データ以前の参照可能データ、辞書データもここに投入される)
-	private byte[] referBytes = new byte[WINDOW_SIZE];
-	private int referIndex;
-	private int referLength;
-	private Hashtable<Object, Object> referMap = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
+	private ReferenceTable reference = new ReferenceTable(WINDOW_MASK);
 	
 	// 一時参照データ (処理中の入力データのブロックの情報を保持)
-	private byte[] blockReferBytes = new byte[BLOCK_SIZE];
-	private int blockReferIndex;
-	private int blockReferLength;
-	private Hashtable<Object, Object> blockReferMap = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
+	private ReferenceTable blockReference = new ReferenceTable(BLOCK_MASK);
 	
 	/**
 	 * 　圧縮レベルとフォーマットを指定するコンストラクタ。
@@ -110,12 +105,8 @@ public class Deflater {
 		bytesWritten = 0L;
 		finishedWrite = false;
 		moreInputs = true;
-		referIndex = 0;
-		referLength = 0;
-		referMap.clear();
-		blockReferIndex=0;
-		blockReferLength=0;
-		blockReferMap.clear();
+		reference.reset();
+		blockReference.reset();
 		if (nowrap) {
 			term = 11;
 		} else {
@@ -377,15 +368,7 @@ public class Deflater {
 			adler32.update(b, off, len); // ZLIBのときはAdler32値の更新
 			useDictionary = true;
 		}
-		// 以下はすべて入力データ圧縮と同じ処理呼び出しで更新すべき		
-		if (referLength < 0x8000) {
-			referLength = Math.min(0x8000, referLength + len); // TODO setDictionary() この処理もまずい
-		}
-		len += off;
-		for (int i = off; i < len; i++) {
-			referBytes[referIndex] = b[i];
-			referIndex = (referIndex + 1) & 0x7FFF; // TODO setDictionary() ここの処理は正しくない
-		}
+		// TODO setDictionary() 辞書データの更新		
 	}
 
 	/**
@@ -428,4 +411,22 @@ public class Deflater {
 		}
 		this.level = level; // TODO setLevel() ここで更新すべきでない
 	}
+
+	private class ReferenceTable {
+		public final int size;
+		public byte[] bytes;
+		public int index;
+		public int length;
+		public Hashtable<Object, Object> table = new Hashtable<>(); // XXX オープンアプリに移すときジェネリクスの削除必須
+		public ReferenceTable(int size) {
+			this.size = size;
+			bytes = new byte[size];
+		}
+		public void reset() {
+			index = 0;
+			length = 0;
+			table.clear();
+		}
+	}
+	
 }
