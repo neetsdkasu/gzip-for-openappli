@@ -83,8 +83,8 @@ public class Adler32 implements Checksum {
 		value = Adler32.update_adler32(value, b, 0, b.length);
 	}
 
-	public void update(byte b) {
-		value = Adler32.update_adler32(value, b);
+	public void update(int b) {
+		value = Adler32.update_adler32(value, (byte)b);
 	}
 
 }
