@@ -6,10 +6,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-public class Hoge {
+public class Test {
 
 	public static void main(String[] args) throws java.lang.Exception  {
-		Hoge hoge = new Hoge();
+		Test hoge = new Test();
 		
 		hoge.testPresetDicitionary();
 		
@@ -20,7 +20,7 @@ public class Hoge {
 //		hoge.testInflater();
 	}
 	
-	public Hoge() {
+	public Test() {
 	}
 	
 	void testPresetDicitionary() throws Exception {
