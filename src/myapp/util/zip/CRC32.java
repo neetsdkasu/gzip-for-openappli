@@ -93,8 +93,8 @@ public class CRC32 implements Checksum {
 		value = CRC32.update_crc(value, b, off, len);
 	}
 
-	public void update(byte b) {
-		value = CRC32.update_crc(value, b);
+	public void update(int b) {
+		value = CRC32.update_crc(value, (byte)b);
 	}
 
 }
