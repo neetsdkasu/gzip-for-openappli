@@ -9,15 +9,15 @@ import java.io.IOException;
 public class Test {
 
 	public static void main(String[] args) throws java.lang.Exception  {
-		Test hoge = new Test();
+		Test test = new Test();
 		
-		hoge.testPresetDicitionary();
+		test.testPresetDicitionary();
 		
-//		hoge.testCRC32();
-//		hoge.testAdler32();
+//		test.testCRC32();
+//		test.testAdler32();
 		
-//		hoge.testGZIPInputStream();
-//		hoge.testInflater();
+//		test.testGZIPInputStream();
+//		test.testInflater();
 	}
 	
 	public Test() {
