@@ -1,9 +1,9 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 import java.io.IOException;
 import java.io.InputStream;
 
-import myapp.io.FilterInputStream;
+import neetsdkasu.io.FilterInputStream;
 
 public class InflaterInputStream extends FilterInputStream {
 
