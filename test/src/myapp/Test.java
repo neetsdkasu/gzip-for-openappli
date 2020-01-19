@@ -108,11 +108,12 @@ public class Test {
 	}
 	
 	public void testGZIPInputStream() throws Exception {
+		File file = java.nio.file.Paths.get("test", "mjlog.gz").toFile();
 		String myResult = null;
 		String javaResult = null;
 		{
 			myapp.util.zip.GZIPInputStream in =
-					new myapp.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
+					new myapp.util.zip.GZIPInputStream(new FileInputStream(file));
 			byte[] data = new byte[100];
 			int len;
 			ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -124,7 +125,7 @@ public class Test {
 		}
 		{
 			java.util.zip.GZIPInputStream in =
-					new java.util.zip.GZIPInputStream(new FileInputStream("mjlog.gz"));
+					new java.util.zip.GZIPInputStream(new FileInputStream(file));
 			byte[] data = new byte[100];
 			int len;
 			ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -244,7 +245,7 @@ public class Test {
 	public void testChecksum(myapp.util.zip.Checksum cs1, java.util.zip.Checksum cs2) {
 		FileInputStream in = null;
 		try {
-			File file = new File("mjlog.gz");
+			File file = java.nio.file.Paths.get("test", "mjlog.gz").toFile();
 			in = new FileInputStream(file);
 			byte[] buf = new byte[1000];
 			int len;
