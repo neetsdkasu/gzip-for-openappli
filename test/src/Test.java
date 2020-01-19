@@ -1,4 +1,4 @@
-package myapp;
+
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,7 +27,7 @@ public class Test {
 		byte[] dictionary = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcde".getBytes();
 		int dic_adler;
 		{
-			myapp.util.zip.Adler32 adler32 = new myapp.util.zip.Adler32();
+			neetsdkasu.util.zip.Adler32 adler32 = new neetsdkasu.util.zip.Adler32();
 			adler32.update(dictionary);
 			dic_adler = (int)adler32.getValue();
 		}
@@ -80,7 +80,7 @@ public class Test {
 			javaResult = new String(baos.toByteArray());
 		}
 		{
-			myapp.util.zip.Inflater inf = new myapp.util.zip.Inflater(false);
+			neetsdkasu.util.zip.Inflater inf = new neetsdkasu.util.zip.Inflater(false);
 			inf.setInput(compressed);
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			byte[] buf = new byte[100];
@@ -112,8 +112,8 @@ public class Test {
 		String myResult = null;
 		String javaResult = null;
 		{
-			myapp.util.zip.GZIPInputStream in =
-					new myapp.util.zip.GZIPInputStream(new FileInputStream(file));
+			neetsdkasu.util.zip.GZIPInputStream in =
+					new neetsdkasu.util.zip.GZIPInputStream(new FileInputStream(file));
 			byte[] data = new byte[100];
 			int len;
 			ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -200,8 +200,8 @@ public class Test {
 	     
 	     // InflaterInputStreamのテスト
 	     ByteArrayInputStream bais = new ByteArrayInputStream(output, 0, compressedDataLength);
-	     myapp.util.zip.InflaterInputStream in = 
-	    		 new myapp.util.zip.InflaterInputStream(bais, new myapp.util.zip.Inflater(nowrap));
+	     neetsdkasu.util.zip.InflaterInputStream in = 
+	    		 new neetsdkasu.util.zip.InflaterInputStream(bais, new neetsdkasu.util.zip.Inflater(nowrap));
 //	     // read() のテスト
 //	     int k;
 //	     while ((k = in.read()) >= 0) {
@@ -242,7 +242,7 @@ public class Test {
 	     System.out.println("---テストおわり---");
 	}
 
-	public void testChecksum(myapp.util.zip.Checksum cs1, java.util.zip.Checksum cs2) {
+	public void testChecksum(neetsdkasu.util.zip.Checksum cs1, java.util.zip.Checksum cs2) {
 		FileInputStream in = null;
 		try {
 			File file = java.nio.file.Paths.get("test", "mjlog.gz").toFile();
@@ -273,11 +273,11 @@ public class Test {
 	}
 
 	public void testCRC32() {
-		testChecksum(new myapp.util.zip.CRC32(), new java.util.zip.CRC32());
+		testChecksum(new neetsdkasu.util.zip.CRC32(), new java.util.zip.CRC32());
 	}
 
 	public void testAdler32() {
-		testChecksum(new myapp.util.zip.Adler32(), new java.util.zip.Adler32());
+		testChecksum(new neetsdkasu.util.zip.Adler32(), new java.util.zip.Adler32());
 	}
 
 	private void printBit(byte b) {

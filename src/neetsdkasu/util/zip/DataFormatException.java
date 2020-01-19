@@ -1,4 +1,4 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 public class DataFormatException extends Exception {
 
