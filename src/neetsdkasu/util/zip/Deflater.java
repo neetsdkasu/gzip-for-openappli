@@ -1,9 +1,9 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 import java.util.Hashtable;
 import java.util.Vector;
 
-import myapp.util.NullArgumentException;
+import neetsdkasu.util.NullArgumentException;
 
 /**
  * Deflateˆ³kƒNƒ‰ƒX
