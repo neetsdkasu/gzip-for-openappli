@@ -1,4 +1,4 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 /**
  * Port "Sample CRC code in RFC1952v4.3" to Java.

@@ -1,4 +1,4 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 /**
  * Port "Sample code in RFC1950v3.3" to Java.

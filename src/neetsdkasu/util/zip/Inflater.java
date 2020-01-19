@@ -1,9 +1,9 @@
-package myapp.util.zip;
+package neetsdkasu.util.zip;
 
 import java.io.ByteArrayOutputStream;
 import java.lang.ref.WeakReference;
 
-import myapp.util.NullArgumentException;
+import neetsdkasu.util.NullArgumentException;
 
 /**Deflateˆ³k‰ğœƒNƒ‰ƒXB
  * @author Leonardone @ NEETSDKASU

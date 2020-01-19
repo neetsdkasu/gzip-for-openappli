@@ -1,4 +1,4 @@
-package myapp.io;
+package neetsdkasu.io;
 
 import java.io.IOException;
 import java.io.InputStream;
